@@ -11,6 +11,11 @@ const COOKIE_NAME = "graveyard_session";
 function getAuthSecret() {
   const fromEnv = process.env.AUTH_SECRET;
   if (fromEnv) return fromEnv;
+  // Vercel serverless: allow boot without env so pages can render; set AUTH_SECRET in project settings.
+  if (process.env.VERCEL) {
+    console.warn("AUTH_SECRET is not set — using an insecure fallback. Set it in Vercel env.");
+    return "graveyard-vercel-insecure-fallback-change-me";
+  }
   if (process.env.NODE_ENV === "production") {
     throw new Error("AUTH_SECRET must be set in production.");
   }

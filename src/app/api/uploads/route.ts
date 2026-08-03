@@ -6,8 +6,8 @@ import { v4 as uuid } from "uuid";
 import { db } from "@/db";
 import { assets, submissions } from "@/db/schema";
 import { requireSession } from "@/lib/auth";
+import { getUploadsDir } from "@/lib/paths";
 
-const UPLOAD_DIR = path.join(process.cwd(), "data", "uploads");
 const ALLOWED = new Set([
   "image/jpeg",
   "image/png",
@@ -55,12 +55,11 @@ export async function POST(request: Request) {
     );
   }
 
-  await fs.mkdir(UPLOAD_DIR, { recursive: true });
-
+  const uploadDir = getUploadsDir();
   const ext = path.extname(file.name) || "";
   const filename = `${uuid()}${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(path.join(UPLOAD_DIR, filename), buffer);
+  await fs.writeFile(path.join(uploadDir, filename), buffer);
 
   const asset = {
     id: uuid(),

@@ -4,6 +4,7 @@ import path from "path";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { assets } from "@/db/schema";
+import { getUploadsDir } from "@/lib/paths";
 
 type Params = { params: Promise<{ filename: string }> };
 
@@ -18,7 +19,7 @@ export async function GET(_request: Request, { params }: Params) {
     with: { submission: true },
   });
 
-  const filePath = path.join(process.cwd(), "data", "uploads", filename);
+  const filePath = path.join(getUploadsDir(), filename);
   if (!fs.existsSync(filePath)) {
     if (asset || filename === "placeholder") {
       const tones = ["#eceae6", "#e7e9ef", "#ebe6e3", "#e5ebe8", "#eee8e8", "#e8ebe4"];

@@ -1,20 +1,14 @@
 import Database from "better-sqlite3";
 import { count } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import fs from "fs";
-import path from "path";
 import { v4 as uuid } from "uuid";
 import { CATEGORIES, CATEGORY_COLORS } from "../lib/constants";
 import { CREATOR_EVENTS } from "../lib/events-seed";
+import { getDbPath } from "../lib/paths";
 import * as schema from "./schema";
 import { categories, events } from "./schema";
 
-const dataDir = path.join(process.cwd(), "data");
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
-
-const dbPath = path.join(dataDir, "graveyard.db");
+const dbPath = getDbPath();
 const sqlite = new Database(dbPath);
 sqlite.pragma("journal_mode = WAL");
 sqlite.pragma("foreign_keys = ON");
