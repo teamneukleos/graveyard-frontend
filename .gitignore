@@ -48,3 +48,5 @@ next-env.d.ts
 
 # committed demo snapshot for Vercel (exact local look) is tracked under /demo-data
 
+demo-data/*.db-wal
+demo-data/*.db-shm
