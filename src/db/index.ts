@@ -214,8 +214,16 @@ export function ensureDbReady() {
     dbReady = (async () => {
       await ensureCategoriesSeeded();
       await ensureEventsSeeded();
-      const { ensureDemoSeed } = await import("./demo-seed");
-      await ensureDemoSeed();
+      // When the committed local snapshot is present, skip procedural seed so
+      // production matches the local catalog and media exactly.
+      const { getDemoDataDir } = await import("../lib/paths");
+      const fs = await import("fs");
+      const path = await import("path");
+      const hasSnapshot = fs.existsSync(path.join(getDemoDataDir(), "graveyard.db"));
+      if (!hasSnapshot) {
+        const { ensureDemoSeed } = await import("./demo-seed");
+        await ensureDemoSeed();
+      }
     })().catch((err) => {
       dbReady = null;
       console.error("[db] ready failed", err);

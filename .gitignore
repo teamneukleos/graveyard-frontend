@@ -40,8 +40,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# local data
+# local mutable data
 /data/*.db
 /data/*.db-*
 /data/uploads/*
 !/data/uploads/.gitkeep
+
+# committed demo snapshot for Vercel (exact local look) is tracked under /demo-data
+

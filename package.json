@@ -13,7 +13,8 @@
     "db:creators": "tsx scripts/seed-creators.ts",
     "db:agencies": "tsx scripts/seed-agencies.ts",
     "db:votes": "tsx scripts/seed-votes.ts",
-    "db:africa": "tsx scripts/africa-rebrand.ts && tsx scripts/fetch-covers.ts"
+    "db:africa": "tsx scripts/africa-rebrand.ts && tsx scripts/fetch-covers.ts",
+    "demo:snapshot": "tsx scripts/export-demo-snapshot.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

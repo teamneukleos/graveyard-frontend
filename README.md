@@ -37,7 +37,9 @@ Google redirect URI: `{APP_URL}/api/auth/google/callback`
 ### Deploy notes
 
 - Set `AUTH_SECRET` in the environment before running in production.
-- Uploads are stored on the local filesystem under `data/uploads` (single-node only).
+- Production (Vercel) boots from the committed `demo-data/` snapshot (DB + covers/avatars) so the live site matches local.
+- Refresh the snapshot after changing local demo content: `npm run demo:snapshot`
+- Uploads written at runtime go under `/tmp` on Vercel (ephemeral).
 - SQLite database lives at `data/graveyard.db`.
 - **Vercel:** the app stores SQLite + uploads under `/tmp` (the only writable path). Data is **ephemeral** — cold starts / new instances reset it. For a real production deploy, move to Turso/Postgres + object storage. Also set `AUTH_SECRET` and `APP_URL` in the Vercel project env.
 
