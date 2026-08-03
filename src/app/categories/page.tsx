@@ -23,9 +23,9 @@ export default async function CategoriesIndexPage() {
     <YardPage>
       <YardHeader
         tone="night"
-        eyebrow="Public voting"
+        eyebrow="The plots"
         title="Categories"
-        description="Every entry enters a category. Vote for what should have gone live."
+        description="Every grave lands in a plot. Vote for what should have gone LIVE."
       />
 
       <YardContainer>

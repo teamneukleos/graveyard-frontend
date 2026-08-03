@@ -176,7 +176,7 @@ export function SubmissionEditor({
 
       <div>
         <label className="label" htmlFor="files">
-          Add assets
+          Add more project images
         </label>
         <input
           className="field"
@@ -186,6 +186,7 @@ export function SubmissionEditor({
           accept="image/*,video/*,.pdf,.ppt,.pptx,.zip"
           onChange={(e) => uploadFiles(e.target.files)}
         />
+        <p className="mt-2 text-xs text-ash">Up to 12 files total per project.</p>
         <ul className="mt-3 space-y-1 text-sm text-ash">
           {assets.map((asset) => (
             <li key={asset.id}>

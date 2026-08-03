@@ -9,9 +9,9 @@ export default async function CreatorsLeaderboardPage() {
     <YardPage>
       <YardHeader
         narrow
-        eyebrow="Weekly votes"
-        title="Creator leaderboard"
-        description="Weekly votes across all categories."
+        eyebrow="Weekly graves"
+        title="Creator board"
+        description="Ranked by public votes this week. No login needed to cast yours."
         actions={
           <Link href="/leaderboards" className="btn btn-ghost">
             All boards
@@ -19,13 +19,16 @@ export default async function CreatorsLeaderboardPage() {
         }
       />
       <YardContainer narrow>
-        <ol className="overflow-hidden rounded-[28px] border border-line bg-white/90">
+        <ol className="min-w-0 overflow-hidden rounded-[28px] border border-line bg-white/90">
           {rows.map((row, i) => (
-            <li key={row.key} className="board-row !grid-cols-[3.5rem_2.5rem_1fr_auto] px-5">
-              <span className={`rank-num text-2xl ${i < 3 ? "text-accent" : "text-ink/30"}`}>
+            <li
+              key={row.key}
+              className="board-row !grid-cols-[2.5rem_2.25rem_minmax(0,1fr)_auto] sm:!grid-cols-[3.25rem_2.5rem_minmax(0,1fr)_auto]"
+            >
+              <span className={`rank-num text-xl sm:text-2xl ${i < 3 ? "text-accent" : "text-ink/30"}`}>
                 {String(i + 1).padStart(2, "0")}
               </span>
-              <span className="relative h-10 w-10 overflow-hidden rounded-full bg-ink">
+              <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-ink sm:h-10 sm:w-10">
                 {row.avatarFilename ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -40,21 +43,28 @@ export default async function CreatorsLeaderboardPage() {
                 )}
               </span>
               <div className="min-w-0">
-                <Link href={row.href} className="truncate font-semibold text-ink hover:underline">
+                <Link
+                  href={row.href}
+                  className="block truncate text-[14px] font-semibold text-ink hover:underline sm:text-[15px]"
+                >
                   {row.name}
                 </Link>
-                <p className="text-[12px] text-mute">
-                  {row.entries} published {row.entries === 1 ? "entry" : "entries"}
+                <p className="truncate text-[11px] text-mute sm:text-[12px]">
+                  {row.entries} published {row.entries === 1 ? "grave" : "graves"}
                 </p>
               </div>
-              <div className="text-right">
-                <p className="font-semibold tabular-nums text-ink">{row.votes}</p>
-                <p className="text-[11px] uppercase tracking-wider text-mute">votes</p>
+              <div className="board-votes shrink-0">
+                <p className="text-[14px] font-semibold tabular-nums text-ink sm:text-[15px]">
+                  {row.votes}
+                </p>
+                <p className="text-[10px] uppercase tracking-wider text-mute sm:text-[11px]">votes</p>
               </div>
             </li>
           ))}
           {rows.length === 0 ? (
-            <li className="py-10 text-center text-mute">No votes yet this week.</li>
+            <li className="px-4 py-10 text-center text-[13px] text-mute sm:px-6">
+              No votes yet this week.
+            </li>
           ) : null}
         </ol>
       </YardContainer>

@@ -46,7 +46,7 @@ function ResetForm() {
     <AuthShell
       eyebrow="Reset"
       title="Choose a new password"
-      description="Pick something memorable — at least 8 characters."
+      description="Pick something memorable. At least 8 characters."
       footer={
         <>
           Back to <AuthLink href="/login">log in</AuthLink>

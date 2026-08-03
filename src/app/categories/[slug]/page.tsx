@@ -5,13 +5,9 @@ import { FeedGrid, type FeedItem } from "@/components/FeedCard";
 import { YardContainer, YardEmpty, YardHeader, YardPage } from "@/components/yard/YardPage";
 import { db } from "@/db";
 import { submissions } from "@/db/schema";
-import { getSession } from "@/lib/auth";
 import { findCategoryByName } from "@/lib/categories";
-import {
-  getCategoryLeaders,
-  getUserVotesForSubmissions,
-  getVoteCountsForIds,
-} from "@/lib/leaderboards";
+import { getCategoryLeaders, getVoteCountsForIds } from "@/lib/leaderboards";
+import { getCurrentVoterVotes } from "@/lib/voter";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -21,7 +17,6 @@ export default async function CategoryPage({ params }: Params) {
   const known = await findCategoryByName(category);
   if (!known?.active) notFound();
 
-  const session = await getSession();
   const leaders = await getCategoryLeaders(category, 10);
 
   const rows = await db.query.submissions.findMany({
@@ -31,8 +26,10 @@ export default async function CategoryPage({ params }: Params) {
   });
 
   const ids = rows.map((r) => r.id);
-  const voteCounts = await getVoteCountsForIds(ids);
-  const userVotes = session ? await getUserVotesForSubmissions(session.id, ids) : new Set<string>();
+  const [voteCounts, voterVotes] = await Promise.all([
+    getVoteCountsForIds(ids),
+    getCurrentVoterVotes(ids),
+  ]);
 
   const items: FeedItem[] = rows
     .map((piece) => ({
@@ -44,7 +41,7 @@ export default async function CategoryPage({ params }: Params) {
       coverFilename: piece.assets[0]?.filename,
       submitter: piece.user.agencyName || piece.user.name,
       votes: voteCounts.get(piece.id) ?? 0,
-      voted: userVotes.has(piece.id),
+      voted: voterVotes.has(piece.id),
     }))
     .sort((a, b) => (b.votes ?? 0) - (a.votes ?? 0));
 
@@ -52,33 +49,35 @@ export default async function CategoryPage({ params }: Params) {
     <YardPage>
       <YardHeader
         tone="night"
-        eyebrow="Category board"
+        eyebrow="Category plot"
         title={category}
-        description={`Vote for the strongest unseen work in ${category}. Rankings are driven by public votes within this category only.`}
+        description={`Vote the strongest unseen work in ${category}. Only votes in this plot count.`}
         actions={
           <Link href="/categories" className="btn btn-ghost text-ink">
-            All categories
+            All plots
           </Link>
         }
       />
 
       <YardContainer>
-        <div className="mb-14 overflow-hidden rounded-[28px] border border-line bg-white/90">
-          <div className="flex items-end justify-between gap-3 border-b border-line px-6 py-5">
-            <h2 className="font-display text-3xl tracking-tight text-ink">Leaderboard</h2>
-            <span className="text-[12px] text-mute">{leaders.length} ranked</span>
+        <div className="mb-14 min-w-0 overflow-hidden rounded-[28px] border border-line bg-white/90">
+          <div className="flex items-end justify-between gap-3 border-b border-line px-4 py-4 sm:px-6 sm:py-5">
+            <h2 className="font-display text-[26px] tracking-tight text-ink sm:text-3xl">
+              Rising now
+            </h2>
+            <span className="shrink-0 text-[12px] text-mute">{leaders.length} ranked</span>
           </div>
-          <ol>
+          <ol className="min-w-0">
             {leaders.map((leader, i) => (
-              <li key={leader.submissionId} className="board-row px-6">
-                <span className={`rank-num text-2xl ${i < 3 ? "text-accent" : "text-ink/30"}`}>
+              <li key={leader.submissionId} className="board-row">
+                <span className={`rank-num text-xl sm:text-2xl ${i < 3 ? "text-accent" : "text-ink/30"}`}>
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <Link
                   href={`/showcase/${leader.submissionId}`}
-                  className="flex min-w-0 items-center gap-4 hover:opacity-70"
+                  className="flex min-w-0 items-center gap-3 hover:opacity-70 sm:gap-4"
                 >
-                  <div className="hidden h-14 w-14 shrink-0 overflow-hidden rounded-2xl sm:block">
+                  <div className="hidden h-12 w-12 shrink-0 overflow-hidden rounded-2xl sm:block sm:h-14 sm:w-14">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`/api/uploads/${leader.coverFilename || "placeholder"}?tone=${i}`}
@@ -87,25 +86,30 @@ export default async function CategoryPage({ params }: Params) {
                     />
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-[15px] font-semibold text-ink">{leader.title}</p>
-                    <p className="truncate text-[12px] text-mute">{leader.submitter}</p>
+                    <p className="truncate text-[14px] font-semibold text-ink sm:text-[15px]">
+                      {leader.title}
+                    </p>
+                    <p className="truncate text-[11px] text-mute sm:text-[12px]">{leader.submitter}</p>
                   </div>
                 </Link>
-                <span className="text-[13px] font-semibold tabular-nums text-ink">
-                  {leader.votes} votes
+                <span className="board-votes shrink-0 text-[12px] font-semibold tabular-nums text-ink sm:text-[13px]">
+                  {leader.votes}
+                  <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wider text-mute">
+                    votes
+                  </span>
                 </span>
               </li>
             ))}
             {leaders.length === 0 ? (
-              <li className="px-6 py-10">
-                <YardEmpty>No votes yet in this category.</YardEmpty>
+              <li className="px-4 py-10 sm:px-6">
+                <YardEmpty>No votes yet in this plot.</YardEmpty>
               </li>
             ) : null}
           </ol>
         </div>
 
-        <h2 className="font-display text-3xl tracking-tight text-ink">All entries</h2>
-        <p className="mt-1 text-[13px] text-mute">Sorted by votes in this category</p>
+        <h2 className="font-display text-[26px] tracking-tight text-ink sm:text-3xl">All graves</h2>
+        <p className="mt-1 text-[13px] text-mute">Sorted by votes in this plot</p>
         <div className="mt-8">
           {items.length > 0 ? <FeedGrid items={items} /> : <YardEmpty>No entries yet.</YardEmpty>}
         </div>

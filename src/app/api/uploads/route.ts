@@ -48,6 +48,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const existingAssets = await db.query.assets.findMany({
+    where: eq(assets.submissionId, submissionId),
+    columns: { id: true },
+  });
+  const MAX_ASSETS = 12;
+  if (existingAssets.length >= MAX_ASSETS) {
+    return NextResponse.json(
+      { error: `Each project can have up to ${MAX_ASSETS} files.` },
+      { status: 400 },
+    );
+  }
+
+  const MAX_BYTES = 25 * 1024 * 1024;
+  if (file.size > MAX_BYTES) {
+    return NextResponse.json({ error: "Each file must be under 25MB." }, { status: 400 });
+  }
+
   if (!ALLOWED.has(file.type) && file.type !== "") {
     return NextResponse.json(
       { error: "Unsupported file type. Upload images, video, PDF, or presentation decks." },

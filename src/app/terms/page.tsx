@@ -1,7 +1,7 @@
 import { LegalDoc, LegalSection } from "@/components/LegalDoc";
 
 export const metadata = {
-  title: "Terms of Use — Graveyard",
+  title: "Terms of Use | Graveyard",
 };
 
 export default function TermsPage() {

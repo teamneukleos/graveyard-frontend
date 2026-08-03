@@ -155,7 +155,7 @@ async function ensureBulkCatalog(judgeId: string, creatorId: string, agencyId: s
         ? `${CREATORS[n % CREATORS.length]}, ${CREATORS[(n + 2) % CREATORS.length]}`
         : CREATORS[n % CREATORS.length],
       yearCreated: 2020 + (n % 6),
-      concept: `A ${CATEGORIES[n % CATEGORIES.length].toLowerCase()} idea rooted in ${TITLE_B[n % TITLE_B.length].toLowerCase()} culture — made for a Nigerian brief that never survived the room. (${agencyLabel})`,
+      concept: `A ${CATEGORIES[n % CATEGORIES.length].toLowerCase()} idea rooted in ${TITLE_B[n % TITLE_B.length].toLowerCase()} culture, made for a Nigerian brief that never survived the room. (${agencyLabel})`,
       whyNeverLive:
         n % 3 === 0
           ? "Client priorities shifted mid-development and the work was shelved."
@@ -350,7 +350,7 @@ async function runDemoSeed() {
         owner: "creator" as const,
         status: "shortlisted" as const,
         concept:
-          "Voice notes never sent home — brand confessions about almost-bought dreams and diaspora guilt.",
+          "Voice notes never sent home. Brand confessions about almost-bought dreams and diaspora guilt.",
         why: "Legal flagged the tone as too intimate for the category.",
       },
       {
@@ -388,7 +388,7 @@ async function runDemoSeed() {
       submitterType: "individual",
       teamMembers: "Chioma Okeke",
       yearCreated: 2025,
-      concept: "An interface built for low-data moments — disappears until you need it.",
+      concept: "An interface built for low-data moments. It disappears until you need it.",
       whyNeverLive: "Still drafting the story.",
       status: "draft",
       published: false,
@@ -418,7 +418,7 @@ async function runDemoSeed() {
   await ensureDemoAvatars();
 }
 
-/** Idempotent demo seed — safe to call on every boot (no-ops when data exists). */
+/** Idempotent demo seed  -  safe to call on every boot (no-ops when data exists). */
 export async function ensureDemoSeed() {
   if (!seeding) {
     seeding = runDemoSeed().catch((err) => {

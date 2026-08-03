@@ -15,37 +15,41 @@ export function LeaderboardPreview({
   dark?: boolean;
 }) {
   return (
-    <section>
+    <section className="min-w-0">
       <div
         className={`flex items-end justify-between gap-3 border-b pb-4 ${
           dark ? "border-white/20" : "border-ink"
         }`}
       >
-        <div>
-          <h3 className={`text-2xl font-bold tracking-tight ${dark ? "text-white" : "text-ink"}`}>
+        <div className="min-w-0">
+          <h3 className={`text-xl font-bold tracking-tight sm:text-2xl ${dark ? "text-white" : "text-ink"}`}>
             {title}
           </h3>
-          <p className={`mt-1 text-[13px] ${dark ? "text-white/50" : "text-mute"}`}>{subtitle}</p>
+          <p className={`mt-1 text-[12px] sm:text-[13px] ${dark ? "text-white/50" : "text-mute"}`}>
+            {subtitle}
+          </p>
         </div>
         <Link
           href={href}
-          className={`text-[13px] font-semibold underline underline-offset-4 ${
+          className={`shrink-0 text-[12px] font-semibold underline underline-offset-4 sm:text-[13px] ${
             dark ? "text-white" : "text-ink"
           }`}
         >
-          View all
+          Full board
         </Link>
       </div>
-      <ol>
+      <ol className="min-w-0">
         {rows.slice(0, 5).map((row, i) => (
           <li
             key={row.key}
-            className={`board-row !grid-cols-[3.5rem_2.5rem_1fr_auto] ${dark ? "!border-white/12" : ""}`}
+            className={`board-row !grid-cols-[2.5rem_2.25rem_minmax(0,1fr)_auto] sm:!grid-cols-[3.25rem_2.5rem_minmax(0,1fr)_auto] ${
+              dark ? "!border-white/12 !px-0" : "!px-0"
+            }`}
           >
-            <span className={`rank-num text-2xl ${dark ? "text-white/30" : "text-ink/30"}`}>
+            <span className={`rank-num text-xl sm:text-2xl ${dark ? "text-white/30" : "text-ink/30"}`}>
               {String(i + 1).padStart(2, "0")}
             </span>
-            <span className="relative h-10 w-10 overflow-hidden rounded-full bg-ink">
+            <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-ink sm:h-10 sm:w-10">
               {row.avatarFilename ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -66,26 +70,26 @@ export function LeaderboardPreview({
             <div className="min-w-0">
               <Link
                 href={row.href}
-                className={`truncate text-[15px] font-semibold hover:underline ${
+                className={`block truncate text-[14px] font-semibold hover:underline sm:text-[15px] ${
                   dark ? "text-white" : "text-ink"
                 }`}
               >
                 {row.name}
               </Link>
-              <p className={`text-[12px] ${dark ? "text-white/45" : "text-mute"}`}>
-                {row.entries} {row.entries === 1 ? "entry" : "entries"}
+              <p className={`truncate text-[11px] sm:text-[12px] ${dark ? "text-white/45" : "text-mute"}`}>
+                {row.entries} {row.entries === 1 ? "grave" : "graves"}
               </p>
             </div>
-            <div className="text-right">
+            <div className={`board-votes shrink-0 ${dark ? "text-white" : ""}`}>
               <p
-                className={`text-[15px] font-semibold tabular-nums ${
+                className={`text-[14px] font-semibold tabular-nums sm:text-[15px] ${
                   dark ? "text-white" : "text-ink"
                 }`}
               >
                 {row.votes}
               </p>
               <p
-                className={`text-[11px] uppercase tracking-wider ${
+                className={`text-[10px] uppercase tracking-wider sm:text-[11px] ${
                   dark ? "text-white/40" : "text-mute"
                 }`}
               >
@@ -96,7 +100,7 @@ export function LeaderboardPreview({
         ))}
         {rows.length === 0 ? (
           <li className={`py-8 text-[13px] ${dark ? "text-white/45" : "text-mute"}`}>
-            No votes yet this week.
+            Quiet week. Be the first vote.
           </li>
         ) : null}
       </ol>
@@ -114,15 +118,17 @@ export function CategoryRail({
   return (
     <section className="min-w-0">
       <div className="mb-5 flex items-end justify-between gap-3">
-        <div>
-          <h3 className="text-2xl font-bold tracking-tight text-ink">{category}</h3>
-          <p className="mt-1 text-[13px] text-mute">Top voted · cast yours</p>
+        <div className="min-w-0">
+          <h3 className="truncate text-xl font-bold tracking-tight text-ink sm:text-2xl">
+            {category}
+          </h3>
+          <p className="mt-1 text-[12px] text-mute sm:text-[13px]">Top of the plot. Cast yours.</p>
         </div>
         <Link
           href={`/categories/${encodeURIComponent(category)}`}
-          className="btn btn-ghost !py-2 !text-[12px]"
+          className="btn btn-ghost shrink-0 !py-2 !text-[12px]"
         >
-          Vote & view
+          Vote
         </Link>
       </div>
       <div className="category-scroll">
@@ -139,7 +145,7 @@ export function CategoryRail({
                 alt=""
               />
             </div>
-            <div className="mt-2">
+            <div className="mt-2 min-w-0">
               <p className="text-[11px] font-semibold text-mute">#{i + 1}</p>
               <p className="truncate text-[14px] font-semibold text-ink">{leader.title}</p>
               <div className="mt-0.5 flex items-center justify-between gap-2">
@@ -152,7 +158,7 @@ export function CategoryRail({
           </Link>
         ))}
         {leaders.length === 0 ? (
-          <p className="text-[13px] text-mute">No published entries yet.</p>
+          <p className="text-[13px] text-mute">Nothing buried here yet.</p>
         ) : null}
       </div>
     </section>

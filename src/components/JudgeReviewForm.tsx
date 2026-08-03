@@ -49,7 +49,7 @@ export function JudgeReviewForm({
     <form className="mt-6 space-y-4" onSubmit={onSubmit}>
       <div>
         <label className="label" htmlFor="score">
-          Score (0–10)
+          Score (0-10)
         </label>
         <input
           className="field"

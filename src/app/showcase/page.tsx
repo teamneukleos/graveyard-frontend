@@ -6,6 +6,8 @@ import { YardContainer, YardEmpty, YardHeader, YardPage } from "@/components/yar
 import { db } from "@/db";
 import { submissions } from "@/db/schema";
 import { getActiveCategoryNames } from "@/lib/categories";
+import { getVoteCountsForIds } from "@/lib/leaderboards";
+import { getCurrentVoterVotes } from "@/lib/voter";
 
 const PAGE_SIZE = 24;
 
@@ -54,6 +56,12 @@ export default async function ShowcasePage({
     new Set(yearsRows.map((r) => r.showcaseYear).filter(Boolean) as number[]),
   ).sort((a, b) => b - a);
 
+  const ids = rows.map((r) => r.id);
+  const [voteCounts, voterVotes] = await Promise.all([
+    getVoteCountsForIds(ids),
+    getCurrentVoterVotes(ids),
+  ]);
+
   const items: FeedItem[] = rows.map((piece) => ({
     id: piece.id,
     title: piece.title,
@@ -62,6 +70,8 @@ export default async function ShowcasePage({
     yearCreated: piece.yearCreated,
     coverFilename: piece.assets[0]?.filename,
     submitter: piece.user.agencyName || piece.user.name,
+    votes: voteCounts.get(piece.id) ?? 0,
+    voted: voterVotes.has(piece.id),
   }));
 
   return (
@@ -69,7 +79,7 @@ export default async function ShowcasePage({
       <YardHeader
         eyebrow="Published work"
         title="Showcase"
-        description="Shortlisted and winning work from across the yard — the pieces that should have gone LIVE."
+        description="Shortlisted and LIVE work from the yard. Vote with just a name and email."
         actions={
           <span className="rounded-full bg-accent px-3 py-1.5 text-[12px] font-bold text-white">
             {total} live

@@ -91,29 +91,40 @@ export function TrendingRail({
         pointerId: e.pointerId,
       };
       pauseForUser();
-      el.setPointerCapture(e.pointerId);
-      setDragging(true);
+      // Don't capture yet  -  capturing immediately blocks Link clicks
     };
 
     const onPointerMove = (e: PointerEvent) => {
       if (!drag.current.active || drag.current.pointerId !== e.pointerId) return;
       const dx = e.clientX - drag.current.startX;
-      if (Math.abs(dx) > DRAG_THRESHOLD) drag.current.moved = true;
+      if (Math.abs(dx) <= DRAG_THRESHOLD) return;
+
+      if (!drag.current.moved) {
+        drag.current.moved = true;
+        setDragging(true);
+        try {
+          el.setPointerCapture(e.pointerId);
+        } catch {
+          /* ignore */
+        }
+      }
       el.scrollLeft = drag.current.startScroll - dx;
     };
 
     const endDrag = (e: PointerEvent) => {
       if (!drag.current.active || drag.current.pointerId !== e.pointerId) return;
+      const wasDragging = drag.current.moved;
       drag.current.active = false;
       setDragging(false);
       try {
-        el.releasePointerCapture(e.pointerId);
+        if (wasDragging) el.releasePointerCapture(e.pointerId);
       } catch {
         /* ignore */
       }
     };
 
     const onClickCapture = (e: MouseEvent) => {
+      // Suppress navigation only after an actual drag
       if (!drag.current.moved) return;
       e.preventDefault();
       e.stopPropagation();
@@ -173,7 +184,7 @@ export function TrendingRail({
             {title}
           </h2>
           <p className="mt-2 max-w-lg text-[15px] leading-relaxed text-mute md:text-[16px]">
-            Highest voted work right now — drag to browse.
+            The loudest graves right now. Drag to browse. Tap to open.
           </p>
         </div>
         <div className="hidden items-center gap-2 sm:flex">
@@ -209,6 +220,7 @@ export function TrendingRail({
               className="group shrink-0"
               style={{ flex: `0 0 ${CARD_WIDTH}px`, width: CARD_WIDTH }}
               draggable={false}
+              onDragStart={(e) => e.preventDefault()}
             >
               <div className="card-media relative aspect-[4/5]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

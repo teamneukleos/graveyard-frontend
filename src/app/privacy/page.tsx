@@ -1,7 +1,7 @@
 import { LegalDoc, LegalSection } from "@/components/LegalDoc";
 
 export const metadata = {
-  title: "Privacy Policy — Graveyard",
+  title: "Privacy Policy | Graveyard",
 };
 
 export default function PrivacyPage() {
@@ -17,10 +17,10 @@ export default function PrivacyPage() {
       <LegalSection title="What we collect">
         <p>Depending on how you use Graveyard, we may process:</p>
         <ul className="list-disc space-y-1 pl-5">
-          <li>Account details — name, email, password hash, optional agency name and bio</li>
-          <li>Profile media — avatar and submission assets you upload</li>
-          <li>Activity — votes, event RSVPs, reviews, and submission metadata</li>
-          <li>Technical data — session cookies and basic server logs needed to run the service</li>
+          <li>Account details: name, email, password hash, optional agency name and bio</li>
+          <li>Profile media: avatar and submission assets you upload</li>
+          <li>Activity: votes, event RSVPs, reviews, and submission metadata</li>
+          <li>Technical data: session cookies and basic server logs needed to run the service</li>
         </ul>
       </LegalSection>
 

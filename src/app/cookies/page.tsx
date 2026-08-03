@@ -1,7 +1,7 @@
 import { LegalDoc, LegalSection } from "@/components/LegalDoc";
 
 export const metadata = {
-  title: "Cookie Policy — Graveyard",
+  title: "Cookie Policy | Graveyard",
 };
 
 export default function CookiesPage() {
@@ -16,7 +16,7 @@ export default function CookiesPage() {
 
       <LegalSection title="Essential cookies">
         <p>
-          <strong>Session cookie</strong> —{" "}
+          <strong>Session cookie:</strong>{" "}
           <code className="rounded bg-soft px-1.5 py-0.5 text-[13px]">graveyard_session</code>
         </p>
         <p>

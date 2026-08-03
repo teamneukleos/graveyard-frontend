@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { VoteButton } from "@/components/VoteButton";
 
 export type FeedItem = {
   id: string;
@@ -16,6 +17,7 @@ export type FeedItem = {
 export function FeedCard({ item, index = 0 }: { item: FeedItem; index?: number }) {
   const isWinner = item.status === "winner";
   const isShortlist = item.status === "shortlisted";
+  const voteCount = item.votes ?? 0;
 
   return (
     <Link href={`/showcase/${item.id}`} className="group block">
@@ -36,6 +38,16 @@ export function FeedCard({ item, index = 0 }: { item: FeedItem; index?: number }
             Shortlist
           </span>
         ) : null}
+
+        <div className="absolute bottom-3 right-3 z-10 opacity-100 transition duration-300 sm:translate-y-1 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
+          <VoteButton
+            submissionId={item.id}
+            initialVoted={Boolean(item.voted)}
+            initialCount={voteCount}
+            compact
+            className="shadow-lg"
+          />
+        </div>
       </div>
       <div className="mt-3">
         <h3 className="truncate font-display text-[16px] font-bold tracking-tight text-ink group-hover:underline">
@@ -45,6 +57,8 @@ export function FeedCard({ item, index = 0 }: { item: FeedItem; index?: number }
           {item.submitter}
           <span className="text-line"> · </span>
           {item.category}
+          <span className="text-line"> · </span>
+          <span className="tabular-nums">{voteCount} votes</span>
         </p>
       </div>
     </Link>

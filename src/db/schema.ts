@@ -80,9 +80,11 @@ export const votes = sqliteTable("votes", {
   submissionId: text("submission_id")
     .notNull()
     .references(() => submissions.id, { onDelete: "cascade" }),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id),
+  userId: text("user_id").references(() => users.id),
+  guestName: text("guest_name"),
+  guestEmail: text("guest_email"),
+  ipHash: text("ip_hash"),
+  voterSessionId: text("voter_session_id"),
   category: text("category").notNull(),
   createdAt: text("created_at").notNull(),
 });

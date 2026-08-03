@@ -8,7 +8,7 @@ export type HeroFeatured = {
   coverFilename?: string | null;
 };
 
-/** Compact Spotify-style greeting — product UI starts immediately below. */
+/** Compact Spotify-style greeting  -  product UI starts immediately below. */
 export function HomeHero({ featured }: { featured: HeroFeatured | null }) {
   return (
     <section className="border-b border-line">
@@ -19,8 +19,7 @@ export function HomeHero({ featured }: { featured: HeroFeatured | null }) {
               Welcome to the Graveyard
             </h1>
             <p className="reveal reveal-delay-1 mt-2 max-w-xl text-[15px] leading-relaxed text-mute">
-              Rejected, shelved, never-produced work — voted on by the public and reviewed by the
-              industry.
+              Rejected, shelved, never-produced work. Voted by the public. Judged by the industry.
             </p>
           </div>
           <div className="reveal reveal-delay-2 flex shrink-0 flex-wrap gap-2">

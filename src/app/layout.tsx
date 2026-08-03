@@ -21,9 +21,9 @@ const display = Syne({
 });
 
 export const metadata: Metadata = {
-  title: "Graveyard — Should have gone LIVE",
+  title: "Graveyard | Should have gone LIVE",
   description:
-    "Digital award for rejected, shelved, and never-produced creative work. Public voting and industry review — awarded anytime.",
+    "Awards for rejected, shelved, and never-produced creative work. Public votes. Industry review. Awarded anytime.",
 };
 
 export default async function RootLayout({

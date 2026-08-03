@@ -43,7 +43,7 @@ export function YardHeader({
             </p>
           ) : null}
           <h1
-            className={`mt-2 font-display text-[28px] tracking-tight md:text-[36px] ${
+            className={`mt-2 font-display text-[clamp(1.6rem,5vw,2.25rem)] leading-[1.05] tracking-tight break-words ${
               night ? "text-white" : "text-ink"
             }`}
           >

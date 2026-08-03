@@ -13,9 +13,9 @@ export default async function EventsPage() {
       <YardHeader
         narrow
         tone="night"
-        eyebrow="In the yard"
-        title="Events & meetups"
-        description="Salons, workshops, and casual meetups for creators and agencies around buried work."
+        eyebrow="Gatherings"
+        title="Nights in the yard"
+        description="Salons, workshops, and meetups where buried work gets an audience."
       />
 
       <YardContainer narrow>

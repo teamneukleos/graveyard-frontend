@@ -88,7 +88,7 @@ export default async function JudgeDetailPage({ params }: Params) {
               <li className="text-mute">No assets uploaded.</li>
             ) : null}
           </ul>
-          <p className="mt-3 text-sm text-mute">Team: {submission.teamMembers || "—"}</p>
+          <p className="mt-3 text-sm text-mute">Team: {submission.teamMembers || "None listed"}</p>
         </YardCard>
 
         <YardCard className="mt-5 p-6 md:p-8">

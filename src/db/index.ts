@@ -83,10 +83,13 @@ sqlite.exec(`
   CREATE TABLE IF NOT EXISTS votes (
     id TEXT PRIMARY KEY,
     submission_id TEXT NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
-    user_id TEXT NOT NULL REFERENCES users(id),
+    user_id TEXT REFERENCES users(id),
+    guest_name TEXT,
+    guest_email TEXT,
+    ip_hash TEXT,
+    voter_session_id TEXT,
     category TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    UNIQUE(submission_id, user_id)
+    created_at TEXT NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS events (
@@ -150,6 +153,41 @@ for (const [column, sql] of userMigrations) {
 }
 
 sqlite.exec(`CREATE INDEX IF NOT EXISTS users_agency_slug_idx ON users(agency_slug)`);
+
+// Guest voting columns + rebuild if still on legacy NOT NULL user_id
+if (!hasColumn("votes", "voter_session_id")) {
+  sqlite.exec(`
+    CREATE TABLE votes_v2 (
+      id TEXT PRIMARY KEY,
+      submission_id TEXT NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
+      user_id TEXT REFERENCES users(id),
+      guest_name TEXT,
+      guest_email TEXT,
+      ip_hash TEXT,
+      voter_session_id TEXT,
+      category TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    INSERT INTO votes_v2 (id, submission_id, user_id, category, created_at)
+      SELECT id, submission_id, user_id, category, created_at FROM votes;
+    DROP TABLE votes;
+    ALTER TABLE votes_v2 RENAME TO votes;
+  `);
+}
+
+sqlite.exec(`
+  CREATE INDEX IF NOT EXISTS votes_category_idx ON votes(category);
+  CREATE INDEX IF NOT EXISTS votes_user_idx ON votes(user_id);
+  CREATE INDEX IF NOT EXISTS votes_created_idx ON votes(created_at);
+  CREATE INDEX IF NOT EXISTS votes_session_idx ON votes(voter_session_id);
+  CREATE INDEX IF NOT EXISTS votes_ip_idx ON votes(ip_hash);
+  CREATE UNIQUE INDEX IF NOT EXISTS votes_submission_user_uidx
+    ON votes(submission_id, user_id) WHERE user_id IS NOT NULL;
+  CREATE UNIQUE INDEX IF NOT EXISTS votes_submission_session_uidx
+    ON votes(submission_id, voter_session_id) WHERE voter_session_id IS NOT NULL;
+  CREATE UNIQUE INDEX IF NOT EXISTS votes_submission_ip_uidx
+    ON votes(submission_id, ip_hash) WHERE ip_hash IS NOT NULL;
+`);
 
 export const db = drizzle(sqlite, { schema });
 

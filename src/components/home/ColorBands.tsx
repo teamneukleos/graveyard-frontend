@@ -27,7 +27,7 @@ function eventDayParts(iso: string) {
   };
 }
 
-/** Events — narrative panel + story strip (no identical cards) */
+/** Events  -  narrative panel + story strip (no identical cards) */
 export function EventsColorBand({ events }: { events: EventWithAvailability[] }) {
   if (!events.length) return null;
   const list = events.slice(0, 3);
@@ -39,7 +39,7 @@ export function EventsColorBand({ events }: { events: EventWithAvailability[] })
           className="relative flex flex-col justify-between px-7 py-12 text-white md:px-10 md:py-16"
           style={{
             background:
-              "linear-gradient(160deg, #1a1a22 0%, #0a0a0a 45%, #12181c 100%)",
+              "linear-gradient(160deg, #ff6a00 0%, #e85d04 42%, #7c2d9e 100%)",
           }}
         >
           <div>
@@ -52,8 +52,7 @@ export function EventsColorBand({ events }: { events: EventWithAvailability[] })
               the yard.
             </h2>
             <p className="mt-4 max-w-sm text-[16px] leading-relaxed text-white/55">
-              Salons, workshops, and nights where shelved work gets an audience — and a second
-              chance.
+              Salons, workshops, and nights where shelved work gets an audience and a second chance.
             </p>
           </div>
           <Link
@@ -113,7 +112,7 @@ export function EventsColorBand({ events }: { events: EventWithAvailability[] })
   );
 }
 
-/** Categories — Apple-style asymmetric feature grid */
+/** Categories  -  Apple-style asymmetric feature grid */
 export function CategoriesColorBand({
   categories,
 }: {
@@ -124,10 +123,10 @@ export function CategoriesColorBand({
 
   const palettes = [
     {
-      gradient: "linear-gradient(145deg, #1c1c1c 0%, #0a0a0a 55%, #161616 100%)",
+      gradient: "linear-gradient(145deg, #ff8c1a 0%, #ff6a00 55%, #e85d04 100%)",
       fg: "#fff",
-      muted: "rgba(255,255,255,0.55)",
-      mark: "rgba(255,255,255,0.08)",
+      muted: "rgba(255,255,255,0.75)",
+      mark: "rgba(255,255,255,0.18)",
     },
     {
       gradient: "linear-gradient(155deg, #faf6f2 0%, #efe4d8 50%, #e2d0c0 100%)",
@@ -148,10 +147,10 @@ export function CategoriesColorBand({
       mark: "rgba(255,255,255,0.15)",
     },
     {
-      gradient: "linear-gradient(155deg, #2a2a32 0%, #16161c 50%, #1e1a28 100%)",
+      gradient: "linear-gradient(155deg, #9b2f8a 0%, #6b21a8 50%, #ff6a00 100%)",
       fg: "#fff",
-      muted: "rgba(255,255,255,0.55)",
-      mark: "rgba(255,255,255,0.08)",
+      muted: "rgba(255,255,255,0.7)",
+      mark: "rgba(255,255,255,0.14)",
     },
     {
       gradient: "linear-gradient(150deg, #ff7a14 0%, #ff9f4d 45%, #e85d04 100%)",
@@ -259,7 +258,7 @@ export function CategoriesColorBand({
   );
 }
 
-/** Agencies — typographic numbered runway */
+/** Agencies  -  typographic numbered runway */
 export function AgenciesColorBand({ rows }: { rows: EntityLeader[] }) {
   return (
     <section className="relative overflow-hidden px-4 py-12 md:px-6 md:py-16">
@@ -277,15 +276,15 @@ export function AgenciesColorBand({ rows }: { rows: EntityLeader[] }) {
               This week
             </p>
             <h2 className="mt-2 font-display text-[34px] font-bold leading-[1.05] tracking-[-0.04em] text-ink md:text-[52px]">
-              Agencies on top.
+              Studios rising from the plots.
             </h2>
             <p className="mt-3 max-w-md text-[16px] leading-relaxed text-mute">
-              Studios pulling the most votes for work that never shipped.
+              Agencies pulling the most votes for work the client never let live.
             </p>
           </div>
           <Link
             href="/leaderboards/agencies"
-            className="rounded-full bg-ink px-5 py-2.5 text-[14px] font-bold text-white hover:bg-black"
+            className="rounded-full bg-accent px-5 py-2.5 text-[14px] font-bold text-white hover:brightness-95"
           >
             Full leaderboard
           </Link>
@@ -315,20 +314,20 @@ export function AgenciesColorBand({ rows }: { rows: EntityLeader[] }) {
               <div className="min-w-0 flex-1">
                 <Link
                   href={row.href}
-                  className="truncate font-display text-[22px] font-bold tracking-tight text-ink hover:underline md:text-[28px]"
+                  className="block truncate font-display text-[20px] font-bold tracking-tight text-ink hover:underline md:text-[28px]"
                 >
                   {row.name}
                 </Link>
-                <p className="text-[13px] text-mute">
-                  {row.entries} {row.entries === 1 ? "entry" : "entries"}
+                <p className="truncate text-[12px] text-mute md:text-[13px]">
+                  {row.entries} {row.entries === 1 ? "grave" : "graves"}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <span className="hidden h-2 w-2 rounded-full bg-accent sm:inline-block" />
                 <span className="hidden h-2 w-2 rounded-full bg-accent/70 sm:inline-block" />
                 <span className="hidden h-2 w-2 rounded-full bg-accent/40 sm:inline-block" />
-                <div className="text-right">
-                  <p className="text-[20px] font-bold tabular-nums text-ink md:text-[24px]">
+                <div className="board-votes min-w-[3rem]">
+                  <p className="text-[18px] font-bold tabular-nums text-ink md:text-[24px]">
                     {row.votes}
                   </p>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-mute">
@@ -347,7 +346,7 @@ export function AgenciesColorBand({ rows }: { rows: EntityLeader[] }) {
   );
 }
 
-/** LIVE — Halloween orange field, white type, eclipse drama */
+/** LIVE  -  Halloween orange field, white type, eclipse drama */
 export function LiveColorBand() {
   return (
     <section className="px-4 py-6 md:px-6 md:py-8">
@@ -365,8 +364,7 @@ export function LiveColorBand() {
               <span className="text-white/90">Not next year.</span>
             </h2>
             <p className="mt-6 max-w-md text-[17px] leading-relaxed text-white/75 md:text-[18px]">
-              Public votes + industry review. Recognition for work the brief killed — awarded
-              anytime.
+              Public votes and industry review. Recognition for work the brief killed, awarded anytime.
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row md:flex-col md:items-stretch lg:flex-row">
@@ -389,18 +387,18 @@ export function LiveColorBand() {
   );
 }
 
-/** How it works — connected plot path */
+/** How it works  -  connected plot path */
 export function HowItWorksBand() {
   const steps = [
     {
       n: "01",
-      title: "Submit",
-      body: "Upload rejected, shelved, or never-produced work — and why it never went live.",
+      title: "Bury it",
+      body: "Upload rejected, shelved, or never-produced work, and the reason it never went live.",
     },
     {
       n: "02",
-      title: "Vote",
-      body: "The public backs what should have shipped. Categories keep the fight fair.",
+      title: "Haunt the vote",
+      body: "The public backs what should have shipped. Each plot stays its own fight.",
     },
     {
       n: "03",

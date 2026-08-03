@@ -16,7 +16,8 @@ import { db } from "@/db";
 import { submissions } from "@/db/schema";
 import { getActiveCategoryNames } from "@/lib/categories";
 import { getUpcomingEvents, withEventAvailability } from "@/lib/events";
-import { getCategoryLeaders, getWeeklyLeaderboard } from "@/lib/leaderboards";
+import { getCategoryLeaders, getVoteCountsForIds, getWeeklyLeaderboard } from "@/lib/leaderboards";
+import { getCurrentVoterVotes } from "@/lib/voter";
 
 const PAGE_SIZE = 24;
 
@@ -89,6 +90,12 @@ export default async function HomePage({
       ])
     : [undefined, [], [], [], []];
 
+  const ids = rows.map((r) => r.id);
+  const [voteCounts, voterVotes] = await Promise.all([
+    getVoteCountsForIds(ids),
+    getCurrentVoterVotes(ids),
+  ]);
+
   const items: FeedItem[] = rows.map((piece) => ({
     id: piece.id,
     title: piece.title,
@@ -98,6 +105,8 @@ export default async function HomePage({
     coverFilename: piece.assets[0]?.filename,
     submitter: piece.user.agencyName || piece.user.name,
     concept: piece.concept,
+    votes: voteCounts.get(piece.id) ?? 0,
+    voted: voterVotes.has(piece.id),
   }));
 
   const query = { category, status: statusFilter, q };
@@ -127,7 +136,7 @@ export default async function HomePage({
                     alt=""
                     className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#c44500]/90 via-[#ff6a00]/25 to-transparent" />
                   <div className="absolute inset-x-0 bottom-0 p-5 md:p-8">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-accent px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white">
@@ -148,21 +157,21 @@ export default async function HomePage({
               </Link>
             ) : null}
 
-            <div className="flex h-full flex-col rounded-[24px] bg-ink p-5 text-white md:p-6">
+            <div className="flex h-full flex-col rounded-[24px] bg-gradient-to-br from-[#ff6a00] via-[#e85d04] to-[#9b2f8a] p-5 text-white md:p-6">
               <div className="flex shrink-0 items-baseline justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-accent">
                     This week
                   </p>
                   <h1 className="mt-1 font-display text-[1.4rem] font-bold tracking-tight md:text-[1.55rem]">
-                    Top creators
+                    Rising creators
                   </h1>
                 </div>
                 <Link
                   href="/leaderboards/creators"
-                  className="text-[12px] font-bold text-white/45 hover:text-white"
+                  className="shrink-0 text-[12px] font-bold text-white/45 hover:text-white"
                 >
-                  All
+                  Board
                 </Link>
               </div>
 
@@ -170,7 +179,7 @@ export default async function HomePage({
                 {weeklyCreators.map((row, i) => (
                   <li
                     key={row.key}
-                    className="flex items-center gap-2.5 border-b border-white/10 py-1.5 last:border-b-0 md:py-2"
+                    className="flex min-w-0 items-center gap-2 border-b border-white/10 py-1.5 last:border-b-0 md:gap-2.5 md:py-2"
                   >
                     <span className="w-5 shrink-0 text-[11px] font-bold tabular-nums text-white/35">
                       {String(i + 1).padStart(2, "0")}
@@ -192,10 +201,10 @@ export default async function HomePage({
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13px] font-semibold text-white">{row.name}</p>
                       <p className="truncate text-[10px] text-white/45">
-                        {row.entries} {row.entries === 1 ? "entry" : "entries"}
+                        {row.entries} {row.entries === 1 ? "grave" : "graves"}
                       </p>
                     </div>
-                    <div className="shrink-0 text-right">
+                    <div className="shrink-0 pl-1 text-right">
                       <p className="text-[13px] font-bold tabular-nums text-white">{row.votes}</p>
                       <p className="text-[9px] uppercase tracking-wider text-white/40">votes</p>
                     </div>
@@ -204,7 +213,7 @@ export default async function HomePage({
               </ol>
 
               {weeklyCreators.length === 0 ? (
-                <p className="mt-6 text-[13px] text-white/45">No votes this week yet.</p>
+                <p className="mt-6 text-[13px] text-white/45">Quiet plots. Be the first vote.</p>
               ) : null}
             </div>
           </div>
@@ -257,7 +266,7 @@ export default async function HomePage({
               </div>
             </div>
             <p className="max-w-sm text-[15px] leading-relaxed text-mute">
-              Fresh submissions — still waiting to go LIVE.
+              Fresh graves still waiting to go LIVE.
             </p>
           </div>
 

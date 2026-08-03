@@ -38,14 +38,13 @@ export function SiteFooter() {
         <div className="flex flex-col gap-8 border-b border-white/10 py-14 md:flex-row md:items-end md:justify-between md:py-16">
           <div className="max-w-xl">
             <BrandLogo href={null} size="lg" tone="dark" className="mb-1" />
-            <h2 className="mt-4 font-display text-[36px] font-bold leading-[1.05] tracking-[-0.04em] md:text-[52px]">
-              Should have
+            <h2 className="mt-4 font-display text-[32px] font-bold leading-[1.08] tracking-[-0.04em] md:text-[44px]">
+              Where buried ideas
               <br />
-              gone LIVE.
+              get their due.
             </h2>
             <p className="mt-4 max-w-md text-[16px] leading-relaxed text-white/60">
-              The award for rejected, shelved, and never-produced work. Public vote. Industry
-              review. Anytime.
+              Awards for rejected, shelved, and never-produced work. Public vote. Industry review.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -56,21 +55,15 @@ export function SiteFooter() {
               Submit work
             </Link>
             <Link
-              href="/?status=winner"
+              href="/showcase"
               className="rounded-full bg-white px-5 py-2.5 text-[14px] font-bold text-ink hover:bg-white/90"
             >
-              View LIVE
+              Browse the yard
             </Link>
           </div>
         </div>
 
-        <div className="grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-5">
-          <div>
-            <BrandLogo size="md" tone="dark" />
-            <p className="mt-4 max-w-[16rem] text-[13px] leading-relaxed text-white/50">
-              Digital awards for work that never shipped.
-            </p>
-          </div>
+        <div className="grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-4">
           <FooterColumn title="Explore" links={explore} />
           <FooterColumn title="Account" links={enter} />
           <FooterColumn title="Categories" links={categories} />
@@ -110,7 +103,7 @@ export function SiteFooter() {
               className="h-[22px] w-auto opacity-85 transition hover:opacity-100"
             />
           </div>
-          <p className="font-semibold text-white/45">Awarded anytime</p>
+          <p className="font-semibold text-white/45">From the plots</p>
         </div>
       </div>
     </footer>

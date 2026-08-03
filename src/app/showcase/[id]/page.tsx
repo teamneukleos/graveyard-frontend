@@ -1,17 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, desc, eq, ne } from "drizzle-orm";
+import { ShowcaseGallery } from "@/components/ShowcaseGallery";
 import { VoteButton } from "@/components/VoteButton";
 import { YardCard, YardPage } from "@/components/yard/YardPage";
 import { db } from "@/db";
 import { submissions, votes } from "@/db/schema";
-import { getSession } from "@/lib/auth";
+import { getCurrentVoterVotes } from "@/lib/voter";
 
 type Params = { params: Promise<{ id: string }> };
 
 export default async function ShowcaseDetailPage({ params }: Params) {
   const { id } = await params;
-  const session = await getSession();
   const piece = await db.query.submissions.findFirst({
     where: and(eq(submissions.id, id), eq(submissions.published, true)),
     with: { user: true, assets: true },
@@ -19,23 +19,35 @@ export default async function ShowcaseDetailPage({ params }: Params) {
 
   if (!piece) notFound();
 
-  const cover = piece.assets[0];
   const [{ total }] = await db
     .select({ total: count() })
     .from(votes)
     .where(eq(votes.submissionId, piece.id));
 
-  const voted = session
-    ? Boolean(
-        await db.query.votes.findFirst({
-          where: and(eq(votes.submissionId, piece.id), eq(votes.userId, session.id)),
-        }),
-      )
-    : false;
+  const votedSet = await getCurrentVoterVotes([piece.id]);
+  const voted = votedSet.has(piece.id);
+
+  const related = await db.query.submissions.findMany({
+    where: and(
+      eq(submissions.published, true),
+      eq(submissions.category, piece.category),
+      ne(submissions.id, piece.id),
+    ),
+    orderBy: [desc(submissions.updatedAt)],
+    limit: 4,
+    with: { user: true, assets: true },
+  });
 
   const profileHref = piece.user.agencyName
     ? `/agencies/${encodeURIComponent(piece.user.agencySlug || piece.user.agencyName)}`
     : `/creators/${piece.user.id}`;
+
+  const galleryAssets = piece.assets.map((a) => ({
+    id: a.id,
+    filename: a.filename,
+    originalName: a.originalName,
+    mimeType: a.mimeType,
+  }));
 
   return (
     <YardPage>
@@ -44,13 +56,8 @@ export default async function ShowcaseDetailPage({ params }: Params) {
           ← Back to showcase
         </Link>
 
-        <div className="card-media mt-6 aspect-[16/10] rounded-[28px]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`/api/uploads/${cover?.filename || "placeholder"}`}
-            alt=""
-            className="h-full w-full object-cover"
-          />
+        <div className="mt-6">
+          <ShowcaseGallery assets={galleryAssets} title={piece.title} />
         </div>
 
         <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
@@ -71,6 +78,9 @@ export default async function ShowcaseDetailPage({ params }: Params) {
                 Shortlist
               </span>
             ) : null}
+            <span className="rounded-full bg-white/90 px-3 py-1 text-[12px] font-semibold text-mute">
+              {piece.yearCreated}
+            </span>
           </div>
           <VoteButton
             submissionId={piece.id}
@@ -86,19 +96,119 @@ export default async function ShowcaseDetailPage({ params }: Params) {
           <Link href={profileHref} className="font-semibold text-ink underline underline-offset-4">
             {piece.user.agencyName || piece.user.name}
           </Link>
-          {piece.teamMembers ? ` · ${piece.teamMembers}` : ""} · {piece.yearCreated}
+          {piece.teamMembers ? ` · ${piece.teamMembers}` : ""} · {piece.submitterType}
         </p>
+
+        <div className="mt-10 rounded-[28px] border border-line bg-white/90 p-5 md:flex md:items-center md:justify-between md:gap-6 md:p-6">
+          <div>
+            <p className="plot-label">Public vote</p>
+            <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-mute">
+              No account needed. Leave your name and email once. One vote per device and network.
+            </p>
+          </div>
+          <div className="mt-4 flex shrink-0 items-center gap-4 md:mt-0">
+            <div className="text-right">
+              <p className="font-display text-3xl font-bold tabular-nums text-ink">{Number(total)}</p>
+              <p className="text-[11px] uppercase tracking-wider text-mute">total votes</p>
+            </div>
+            <VoteButton
+              submissionId={piece.id}
+              initialVoted={voted}
+              initialCount={Number(total)}
+            />
+          </div>
+        </div>
 
         <div className="mt-12 grid gap-5 md:grid-cols-2">
           <YardCard className="p-6 md:p-8">
             <h2 className="plot-label">Creative concept</h2>
-            <p className="mt-4 text-[16px] leading-relaxed text-ink">{piece.concept}</p>
+            <p className="mt-4 whitespace-pre-wrap text-[16px] leading-relaxed text-ink">
+              {piece.concept}
+            </p>
           </YardCard>
           <YardCard className="p-6 md:p-8">
             <h2 className="plot-label">Why it never went live</h2>
-            <p className="mt-4 text-[16px] leading-relaxed text-ink">{piece.whyNeverLive}</p>
+            <p className="mt-4 whitespace-pre-wrap text-[16px] leading-relaxed text-ink">
+              {piece.whyNeverLive}
+            </p>
           </YardCard>
         </div>
+
+        {piece.teamMembers ? (
+          <YardCard className="mt-5 p-6 md:p-8">
+            <h2 className="plot-label">Credits</h2>
+            <p className="mt-4 text-[16px] leading-relaxed text-ink">{piece.teamMembers}</p>
+            <p className="mt-3 text-[13px] text-mute">
+              Submitted as {piece.submitterType === "agency" ? "an agency" : "an individual"} ·{" "}
+              {piece.yearCreated}
+              {piece.showcaseYear ? ` · Showcase ${piece.showcaseYear}` : ""}
+            </p>
+          </YardCard>
+        ) : null}
+
+        {galleryAssets.length > 1 ? (
+          <div className="mt-12">
+            <h2 className="font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
+              Full project gallery
+            </h2>
+            <p className="mt-2 text-[14px] text-mute">
+              {galleryAssets.length} assets attached to this entry.
+            </p>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              {galleryAssets
+                .filter((a) => a.mimeType.startsWith("image/"))
+                .map((asset) => (
+                  <div key={asset.id} className="card-media aspect-[4/5] overflow-hidden rounded-[24px]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/uploads/${asset.filename}`}
+                      alt={asset.originalName}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                ))}
+            </div>
+          </div>
+        ) : null}
+
+        {related.length > 0 ? (
+          <div className="mt-16 border-t border-line pt-12">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="plot-label">More from {piece.category}</p>
+                <h2 className="mt-2 font-display text-3xl font-bold tracking-tight text-ink">
+                  Related graves
+                </h2>
+              </div>
+              <Link
+                href={`/categories/${encodeURIComponent(piece.category)}`}
+                className="text-[13px] font-semibold text-mute hover:text-ink"
+              >
+                See all
+              </Link>
+            </div>
+            <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+              {related.map((item, i) => (
+                <Link key={item.id} href={`/showcase/${item.id}`} className="group block">
+                  <div className="card-media aspect-[4/5] overflow-hidden rounded-[20px]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/uploads/${item.assets[0]?.filename || "placeholder"}?tone=${i}`}
+                      alt=""
+                      className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                    />
+                  </div>
+                  <p className="mt-3 truncate font-display text-[15px] font-bold text-ink group-hover:underline">
+                    {item.title}
+                  </p>
+                  <p className="truncate text-[12px] text-mute">
+                    {item.user.agencyName || item.user.name}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
     </YardPage>
   );

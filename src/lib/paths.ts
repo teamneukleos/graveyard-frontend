@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-/** Writable data root — /tmp on Vercel (read-only except /tmp), else ./data */
+/** Writable data root  -  /tmp on Vercel (read-only except /tmp), else ./data */
 export function getDataDir() {
   const base =
     process.env.GRAVEYARD_DATA_DIR ||

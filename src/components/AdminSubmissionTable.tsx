@@ -124,7 +124,7 @@ export function AdminSubmissionTable({ submissions }: { submissions: Row[] }) {
                 <td className="px-3 py-3 text-ash">{row.category}</td>
                 <td className="px-3 py-3 text-ash">{row.submitter}</td>
                 <td className="px-3 py-3 text-ash">
-                  {row.avgScore != null ? row.avgScore.toFixed(1) : "—"}
+                  {row.avgScore != null ? row.avgScore.toFixed(1) : "-"}
                 </td>
                 <td className="px-3 py-3">
                   <select

@@ -67,7 +67,7 @@ export default async function PortalPage() {
           <div className="mt-6">
             <AwardsHistory
               awards={awards}
-              emptyLabel="No awards yet — keep submitting work that should have gone LIVE."
+              emptyLabel="No awards yet. Keep burying work that should have gone LIVE."
             />
           </div>
         </section>

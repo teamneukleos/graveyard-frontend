@@ -139,7 +139,7 @@ export function SubmitForm({ categories }: { categories: string[] }) {
 
       <div>
         <label className="label" htmlFor="files">
-          Supporting assets
+          Project images & assets
         </label>
         <input
           className="field"
@@ -151,7 +151,7 @@ export function SubmitForm({ categories }: { categories: string[] }) {
           onChange={(e) => setFiles(e.target.files)}
         />
         <p className="mt-2 text-xs text-ash">
-          Images, videos, PDFs, presentation decks, and zip files.
+          Add multiple images for one project (up to 12). Also accepts video, PDF, decks, and zip.
         </p>
       </div>
 
