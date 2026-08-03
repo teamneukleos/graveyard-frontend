@@ -21,9 +21,16 @@ const DRAG_THRESHOLD = 8;
 export function TrendingRail({
   items,
   title = "Trending",
+  brand,
 }: {
   items: TrendingItem[];
   title?: string;
+  /** When set, brand H1 + tagline lead the rail instead of a separate intro block. */
+  brand?: {
+    eyebrow: string;
+    name: string;
+    description: string;
+  };
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const pausedRef = useRef(false);
@@ -178,16 +185,35 @@ export function TrendingRail({
   return (
     <section className="trending-boxes border-b border-line bg-paper py-8 md:py-10">
       <div className="mx-auto flex max-w-[1440px] items-end justify-between gap-4 px-4 md:px-6">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-mute">Now</p>
-          <h2 className="mt-2 font-display text-[28px] font-bold tracking-[-0.04em] text-ink md:text-[40px]">
-            {title}
-          </h2>
-          <p className="mt-2 max-w-lg text-[15px] leading-relaxed text-mute md:text-[16px]">
-            The loudest graves right now. Drag to browse. Tap to open.
-          </p>
+        <div className="min-w-0 flex-1">
+          {brand ? (
+            <>
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-mute">
+                {brand.eyebrow}
+              </p>
+              <h1 className="mt-2 font-display text-[clamp(2.2rem,5vw,3.5rem)] font-bold leading-[0.95] tracking-tight text-ink">
+                {brand.name}
+              </h1>
+              <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-mute md:text-[16px]">
+                {brand.description}
+              </p>
+              <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.16em] text-mute">
+                {title}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-mute">Now</p>
+              <h2 className="mt-2 font-display text-[28px] font-bold tracking-[-0.04em] text-ink md:text-[40px]">
+                {title}
+              </h2>
+              <p className="mt-2 max-w-lg text-[15px] leading-relaxed text-mute md:text-[16px]">
+                The loudest graves right now. Drag to browse. Tap to open.
+              </p>
+            </>
+          )}
         </div>
-        <div className="hidden items-center gap-2 sm:flex">
+        <div className="hidden shrink-0 items-center gap-2 sm:flex">
           <button
             type="button"
             aria-label="Previous"

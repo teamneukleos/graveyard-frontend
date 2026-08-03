@@ -434,26 +434,11 @@ body {
   inset: 0;
   z-index: 0;
   overflow: hidden;
-  color: #c45a12;
+  color: #b8b8b8;
 }
 
 .ga-eclipse {
-  position: absolute;
-  top: -18%;
-  left: -30%;
-  width: 85%;
-  height: 52vh;
-  border-radius: 50%;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(255, 160, 60, 0.28) 0%,
-    rgba(255, 106, 0, 0.14) 42%,
-    rgba(255, 200, 120, 0.06) 62%,
-    transparent 74%
-  );
-  filter: blur(10px);
-  animation: ga-eclipse-drift 28s ease-in-out infinite alternate;
-  will-change: transform;
+  display: none;
 }
 
 .ga-lightning {
@@ -461,8 +446,8 @@ body {
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.45) 0%,
-    rgba(255, 160, 60, 0.22) 35%,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(240, 240, 240, 0.2) 35%,
     transparent 70%
   );
   opacity: 0;
@@ -503,7 +488,7 @@ body {
 .ga-grain {
   position: absolute;
   inset: 0;
-  opacity: 0.03;
+  opacity: 0.025;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 180px 180px;
   mix-blend-mode: soft-light;
@@ -515,11 +500,11 @@ body {
   height: 45%;
   border-radius: 50%;
   filter: blur(52px);
-  opacity: 0.4;
+  opacity: 0.22;
   background: radial-gradient(
     ellipse at center,
-    rgba(255, 186, 120, 0.35) 0%,
-    rgba(255, 140, 60, 0.12) 45%,
+    rgba(0, 0, 0, 0.04) 0%,
+    rgba(0, 0, 0, 0.015) 45%,
     transparent 72%
   );
   animation: ga-drift 48s ease-in-out infinite alternate;
@@ -528,56 +513,30 @@ body {
 .ga-mist-a {
   bottom: 8%;
   height: 42%;
-  opacity: 0.36;
+  opacity: 0.2;
   animation-duration: 56s;
 }
 
 .ga-mist-b {
   bottom: 22%;
   height: 34%;
-  opacity: 0.28;
+  opacity: 0.16;
   animation-duration: 72s;
   animation-direction: alternate-reverse;
   background: radial-gradient(
     ellipse at center,
-    rgba(255, 106, 0, 0.2) 0%,
-    rgba(180, 90, 255, 0.08) 40%,
+    rgba(0, 0, 0, 0.035) 0%,
+    rgba(0, 0, 0, 0.01) 40%,
     transparent 70%
   );
 }
 
 .ga-mist-c {
-  top: 8%;
-  bottom: auto;
-  height: 30%;
-  opacity: 0.22;
-  animation-duration: 64s;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(255, 200, 140, 0.22) 0%,
-    rgba(255, 120, 40, 0.08) 50%,
-    transparent 70%
-  );
+  display: none;
 }
 
 .ga-moon {
-  position: absolute;
-  top: 6%;
-  right: 8%;
-  width: min(16vw, 128px);
-  height: min(16vw, 128px);
-  border-radius: 50%;
-  background: radial-gradient(
-    circle at 35% 35%,
-    #fff4d6 0%,
-    #ffd4a8 28%,
-    #ff8c1a 55%,
-    rgba(255, 106, 0, 0.35) 72%,
-    transparent 78%
-  );
-  opacity: 0.55;
-  filter: blur(0.5px);
-  animation: ga-pulse 10s ease-in-out infinite;
+  display: none;
 }
 
 .ga-ghost {

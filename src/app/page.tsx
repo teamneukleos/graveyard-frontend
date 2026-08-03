@@ -194,10 +194,10 @@ export default async function HomePage({
     <main className="product-shell flex-1">
       <ScareIntro />
       <SkyDrama />
-      {brandHome ? (
+      {brandHome && trending.length === 0 ? (
         <header className="mx-auto max-w-[1440px] px-4 pt-8 md:px-6 md:pt-10">
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-mute">
-            Digital awards
+            Digital repository
           </p>
           <h1 className="mt-2 font-display text-[clamp(2.4rem,6vw,3.75rem)] font-bold leading-[0.95] tracking-tight text-ink">
             {SITE_NAME}
@@ -209,7 +209,15 @@ export default async function HomePage({
         </header>
       ) : null}
       {showDiscovery && trending.length > 0 ? (
-        <TrendingRail items={trending} title="Trending submissions" />
+        <TrendingRail
+          items={trending}
+          title="Trending now"
+          brand={{
+            eyebrow: "Digital repository",
+            name: SITE_NAME,
+            description: `${SITE_TAGLINE}. Rejected, shelved, and never-produced creative work. Public votes and industry review. Awarded anytime.`,
+          }}
+        />
       ) : null}
 
       {showHero ? (

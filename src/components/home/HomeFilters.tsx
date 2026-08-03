@@ -36,7 +36,7 @@ export function HomeFilters({
             key={item.href + item.label}
             href={item.href}
             className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
-              item.active ? "bg-ink text-white" : "bg-soft text-ink hover:bg-[#ebebeb]"
+              item.active ? "bg-night text-white" : "bg-soft text-ink hover:bg-canvas"
             }`}
           >
             {item.label}

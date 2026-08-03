@@ -117,14 +117,10 @@ export function GraveyardAtmosphere() {
   return (
     <>
       <div className="graveyard-atmosphere" aria-hidden="true">
-        <div className="ga-eclipse" />
         <div className="ga-lightning" />
         <div className="ga-grain" />
         <div className="ga-mist ga-mist-a" />
         <div className="ga-mist ga-mist-b" />
-        <div className="ga-mist ga-mist-c" />
-
-        <div className="ga-moon" />
 
         <svg className="ga-ghost ga-ghost-1" viewBox="0 0 64 80" fill="none">
           <path
