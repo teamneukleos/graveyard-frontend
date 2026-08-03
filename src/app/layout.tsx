@@ -3,6 +3,7 @@ import { DM_Sans, Syne } from "next/font/google";
 import { GraveyardAtmosphere } from "@/components/GraveyardAtmosphere";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteNav } from "@/components/SiteNav";
+import { ensureDbReady } from "@/db";
 import { getSession } from "@/lib/auth";
 import "./globals.css";
 
@@ -30,6 +31,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  await ensureDbReady();
   const user = await getSession();
 
   return (

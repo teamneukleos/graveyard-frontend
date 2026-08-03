@@ -206,8 +206,24 @@ async function ensureEventsSeeded() {
   );
 }
 
-void ensureCategoriesSeeded();
-void ensureEventsSeeded();
+let dbReady: Promise<void> | null = null;
+
+/** Await before reading public/portal data so Vercel /tmp boots with demo content. */
+export function ensureDbReady() {
+  if (!dbReady) {
+    dbReady = (async () => {
+      await ensureCategoriesSeeded();
+      await ensureEventsSeeded();
+      const { ensureDemoSeed } = await import("./demo-seed");
+      await ensureDemoSeed();
+    })().catch((err) => {
+      dbReady = null;
+      console.error("[db] ready failed", err);
+      throw err;
+    });
+  }
+  return dbReady;
+}
 
 // Backfill: verify existing seeded accounts; slug agency names once
 try {

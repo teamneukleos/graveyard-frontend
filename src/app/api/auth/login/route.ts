@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { ensureDbReady } from "@/db";
 import { createSession, findUserByEmail, verifyPassword } from "@/lib/auth";
 
 const loginSchema = z.object({
@@ -9,6 +10,7 @@ const loginSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    await ensureDbReady();
     const body = await request.json();
     const data = loginSchema.parse(body);
 
