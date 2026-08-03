@@ -25,7 +25,7 @@ export function ShowcaseGallery({
     return (
       <div className="card-media aspect-[16/10] rounded-[28px] bg-canvas">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/api/uploads/placeholder" alt="" className="h-full w-full object-cover" />
+        <img src="/api/uploads/placeholder" alt={`${title} placeholder`} className="h-full w-full object-cover" />
       </div>
     );
   }

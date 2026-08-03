@@ -1,13 +1,48 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { AwardsHistory, toAwardEntries } from "@/components/AwardsHistory";
 import { FeedGrid, type FeedItem } from "@/components/FeedCard";
+import { JsonLd } from "@/components/JsonLd";
 import { YardContainer, YardEmpty, YardHeader, YardPage, YardStat } from "@/components/yard/YardPage";
 import { db } from "@/db";
 import { submissions, users } from "@/db/schema";
+import {
+  breadcrumbJsonLd,
+  buildMetadata,
+  metaDescription,
+  profileJsonLd,
+} from "@/lib/seo";
 
 type Params = { params: Promise<{ id: string }> };
+
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  const { id } = await params;
+  const user = await db.query.users.findFirst({ where: eq(users.id, id) });
+  if (!user || !user.active) {
+    return buildMetadata({
+      title: "Creator not found",
+      description: "This creator profile is unavailable.",
+      path: `/creators/${id}`,
+      noIndex: true,
+    });
+  }
+
+  return buildMetadata({
+    title: user.name,
+    description: metaDescription(
+      user.bio ||
+        `${user.name} on Graveyard. Rejected and shelved creative work that should have gone LIVE.`,
+    ),
+    path: `/creators/${user.id}`,
+    image: user.avatarFilename ? `/api/uploads/${user.avatarFilename}` : undefined,
+    type: "profile",
+    keywords: [user.name, user.agencyName || "", "Graveyard creator", "creative awards"].filter(
+      Boolean,
+    ),
+  });
+}
 
 export default async function CreatorProfilePage({ params }: Params) {
   const { id } = await params;
@@ -35,6 +70,21 @@ export default async function CreatorProfilePage({ params }: Params) {
 
   return (
     <YardPage>
+      <JsonLd
+        data={[
+          profileJsonLd({
+            name: user.name,
+            description: user.bio || undefined,
+            path: `/creators/${user.id}`,
+            image: user.avatarFilename,
+            type: "Person",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: user.name, path: `/creators/${user.id}` },
+          ]),
+        ]}
+      />
       <YardHeader
         tone="night"
         eyebrow="Creator"
@@ -59,7 +109,7 @@ export default async function CreatorProfilePage({ params }: Params) {
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={`/api/uploads/${user.avatarFilename}`}
-                alt=""
+                alt={`${user.name} avatar`}
                 className="h-full w-full object-cover"
               />
             ) : (

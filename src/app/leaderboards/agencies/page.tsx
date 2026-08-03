@@ -1,12 +1,30 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+import { JsonLd } from "@/components/JsonLd";
 import { YardContainer, YardHeader, YardPage } from "@/components/yard/YardPage";
 import { getWeeklyLeaderboard } from "@/lib/leaderboards";
+import { breadcrumbJsonLd, buildMetadata, metaDescription } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Agency leaderboard",
+  description: metaDescription(
+    "Weekly agency leaderboard on Graveyard. Studios ranked by public votes on work that never shipped.",
+  ),
+  path: "/leaderboards/agencies",
+});
 
 export default async function AgenciesLeaderboardPage() {
   const rows = await getWeeklyLeaderboard("agency", 50);
 
   return (
     <YardPage>
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Leaderboards", path: "/leaderboards" },
+          { name: "Agencies", path: "/leaderboards/agencies" },
+        ])}
+      />
       <YardHeader
         narrow
         eyebrow="Weekly graves"

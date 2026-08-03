@@ -1,8 +1,20 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+import { JsonLd } from "@/components/JsonLd";
 import { RequestSeatButton } from "@/components/RequestSeatButton";
 import { YardCard, YardContainer, YardEmpty, YardHeader, YardPage } from "@/components/yard/YardPage";
 import { getSession } from "@/lib/auth";
 import { formatEventWhen, getUpcomingEvents, withEventAvailability } from "@/lib/events";
+import { breadcrumbJsonLd, buildMetadata, eventJsonLd, metaDescription } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Events",
+  description: metaDescription(
+    "Graveyard nights: salons, workshops, and meetups where buried creative work gets an audience. Request a seat.",
+  ),
+  path: "/events",
+  keywords: ["creative events", "Graveyard salon", "advertising meetup", "Nigeria creative"],
+});
 
 export default async function EventsPage() {
   const session = await getSession();
@@ -10,6 +22,25 @@ export default async function EventsPage() {
 
   return (
     <YardPage>
+      <JsonLd
+        data={[
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Events", path: "/events" },
+          ]),
+          ...events.map((event) =>
+            eventJsonLd({
+              id: event.id,
+              title: event.title,
+              description: event.blurb,
+              startsAt: event.startsAt,
+              city: event.city,
+              venue: event.venue,
+              format: event.format,
+            }),
+          ),
+        ]}
+      />
       <YardHeader
         narrow
         tone="night"
@@ -47,7 +78,9 @@ export default async function EventsPage() {
                   initialRequested={event.requested}
                   isLoggedIn={Boolean(session)}
                 />
-                <p className="text-[11px] text-mute">{event.spotsLeft} of {event.capacity} seats</p>
+                <p className="text-[11px] text-mute">
+                  {event.spotsLeft} of {event.capacity} seats
+                </p>
               </div>
             </YardCard>
           ))}

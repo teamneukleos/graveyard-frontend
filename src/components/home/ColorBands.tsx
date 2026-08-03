@@ -304,7 +304,7 @@ export function AgenciesColorBand({ rows }: { rows: EntityLeader[] }) {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={`/api/uploads/${row.avatarFilename}`}
-                    alt=""
+                    alt={`${row.name} avatar`}
                     className="h-full w-full object-cover"
                   />
                 ) : (

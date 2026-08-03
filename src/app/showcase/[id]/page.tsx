@@ -1,14 +1,61 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { and, count, desc, eq, ne } from "drizzle-orm";
+import { JsonLd } from "@/components/JsonLd";
 import { ShowcaseGallery } from "@/components/ShowcaseGallery";
 import { VoteButton } from "@/components/VoteButton";
 import { YardCard, YardPage } from "@/components/yard/YardPage";
 import { db } from "@/db";
 import { submissions, votes } from "@/db/schema";
+import {
+  breadcrumbJsonLd,
+  buildMetadata,
+  creativeWorkJsonLd,
+  metaDescription,
+} from "@/lib/seo";
 import { getCurrentVoterVotes } from "@/lib/voter";
 
 type Params = { params: Promise<{ id: string }> };
+
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  const { id } = await params;
+  const piece = await db.query.submissions.findFirst({
+    where: and(eq(submissions.id, id), eq(submissions.published, true)),
+    with: { user: true, assets: true },
+  });
+  if (!piece) {
+    return buildMetadata({
+      title: "Grave not found",
+      description: "This showcase entry is unavailable.",
+      path: `/showcase/${id}`,
+      noIndex: true,
+    });
+  }
+
+  const creator = piece.user.agencyName || piece.user.name;
+  const blurb = metaDescription(
+    `${piece.title} by ${creator}. ${piece.category}, ${piece.yearCreated}. ${piece.concept}`,
+  );
+
+  return buildMetadata({
+    title: piece.title,
+    description: blurb,
+    path: `/showcase/${piece.id}`,
+    image: piece.assets[0]?.filename
+      ? `/api/uploads/${piece.assets[0].filename}`
+      : undefined,
+    type: "article",
+    keywords: [
+      piece.category,
+      piece.title,
+      creator,
+      "Graveyard awards",
+      "should have gone live",
+      "rejected creative work",
+    ],
+  });
+}
 
 export default async function ShowcaseDetailPage({ params }: Params) {
   const { id } = await params;
@@ -38,6 +85,7 @@ export default async function ShowcaseDetailPage({ params }: Params) {
     with: { user: true, assets: true },
   });
 
+  const creatorName = piece.user.agencyName || piece.user.name;
   const profileHref = piece.user.agencyName
     ? `/agencies/${encodeURIComponent(piece.user.agencySlug || piece.user.agencyName)}`
     : `/creators/${piece.user.id}`;
@@ -51,6 +99,26 @@ export default async function ShowcaseDetailPage({ params }: Params) {
 
   return (
     <YardPage>
+      <JsonLd
+        data={[
+          creativeWorkJsonLd({
+            id: piece.id,
+            title: piece.title,
+            description: metaDescription(piece.concept, 300),
+            category: piece.category,
+            yearCreated: piece.yearCreated,
+            creatorName,
+            image: piece.assets[0]?.filename,
+            datePublished: piece.updatedAt,
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Showcase", path: "/showcase" },
+            { name: piece.category, path: `/categories/${encodeURIComponent(piece.category)}` },
+            { name: piece.title, path: `/showcase/${piece.id}` },
+          ]),
+        ]}
+      />
       <div className="mx-auto max-w-[1100px] px-4 py-8 md:px-6 md:py-12">
         <Link href="/showcase" className="text-[13px] font-medium text-mute hover:text-ink">
           ← Back to showcase
@@ -94,7 +162,7 @@ export default async function ShowcaseDetailPage({ params }: Params) {
         </h1>
         <p className="mt-4 text-[15px] text-mute">
           <Link href={profileHref} className="font-semibold text-ink underline underline-offset-4">
-            {piece.user.agencyName || piece.user.name}
+            {creatorName}
           </Link>
           {piece.teamMembers ? ` · ${piece.teamMembers}` : ""} · {piece.submitterType}
         </p>
@@ -162,7 +230,7 @@ export default async function ShowcaseDetailPage({ params }: Params) {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`/api/uploads/${asset.filename}`}
-                      alt={asset.originalName}
+                      alt={`${piece.title}: ${asset.originalName}`}
                       className="h-full w-full object-cover"
                     />
                   </div>
@@ -194,7 +262,7 @@ export default async function ShowcaseDetailPage({ params }: Params) {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`/api/uploads/${item.assets[0]?.filename || "placeholder"}?tone=${i}`}
-                      alt=""
+                      alt={`${item.title} by ${item.user.agencyName || item.user.name}`}
                       className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                     />
                   </div>

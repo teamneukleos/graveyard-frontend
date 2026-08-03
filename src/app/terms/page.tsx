@@ -1,8 +1,12 @@
+import type { Metadata } from "next";
 import { LegalDoc, LegalSection } from "@/components/LegalDoc";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Terms of Use | Graveyard",
-};
+export const metadata: Metadata = buildMetadata({
+  title: "Terms of Use",
+  description: "Terms governing use of the Graveyard awards platform and showcase.",
+  path: "/terms",
+});
 
 export default function TermsPage() {
   return (

@@ -1,13 +1,51 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { and, eq, or } from "drizzle-orm";
 import { AwardsHistory, toAwardEntries } from "@/components/AwardsHistory";
 import { FeedGrid, type FeedItem } from "@/components/FeedCard";
+import { JsonLd } from "@/components/JsonLd";
 import { YardContainer, YardEmpty, YardHeader, YardPage, YardStat } from "@/components/yard/YardPage";
 import { db } from "@/db";
 import { submissions, users } from "@/db/schema";
+import {
+  breadcrumbJsonLd,
+  buildMetadata,
+  metaDescription,
+  profileJsonLd,
+} from "@/lib/seo";
 
 type Params = { params: Promise<{ slug: string }> };
+
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  const { slug } = await params;
+  const decoded = decodeURIComponent(slug);
+  const roster = await db.query.users.findMany({
+    where: or(eq(users.agencySlug, decoded), eq(users.agencyName, decoded)),
+    limit: 1,
+  });
+  if (roster.length === 0) {
+    return buildMetadata({
+      title: "Agency not found",
+      description: "This agency profile is unavailable.",
+      path: `/agencies/${encodeURIComponent(decoded)}`,
+      noIndex: true,
+    });
+  }
+
+  const agencyName = roster[0].agencyName || decoded;
+  const avatar = roster[0].avatarFilename;
+  const bio = roster[0].bio || `${agencyName} on Graveyard. Shelved campaigns and unpublished work.`;
+
+  return buildMetadata({
+    title: agencyName,
+    description: metaDescription(bio),
+    path: `/agencies/${encodeURIComponent(roster[0].agencySlug || agencyName)}`,
+    image: avatar ? `/api/uploads/${avatar}` : undefined,
+    type: "profile",
+    keywords: [agencyName, "creative agency", "Graveyard", "should have gone live"],
+  });
+}
 
 export default async function AgencyProfilePage({ params }: Params) {
   const { slug } = await params;
@@ -20,6 +58,7 @@ export default async function AgencyProfilePage({ params }: Params) {
   if (roster.length === 0) notFound();
 
   const agencyName = roster[0].agencyName || decoded;
+  const agencyPath = `/agencies/${encodeURIComponent(roster[0].agencySlug || agencyName)}`;
   const avatar = roster.find((u) => u.avatarFilename)?.avatarFilename;
   const bio = roster.find((u) => u.bio)?.bio || `${agencyName} on Graveyard.`;
 
@@ -35,7 +74,6 @@ export default async function AgencyProfilePage({ params }: Params) {
       s.user.agencyName === agencyName,
   );
 
-  const voteTotal = agencyWork.reduce((sum, s) => sum + s.votes.length, 0);
   const awards = toAwardEntries(agencyWork);
   const liveCount = awards.filter((a) => a.status === "winner").length;
 
@@ -51,6 +89,21 @@ export default async function AgencyProfilePage({ params }: Params) {
 
   return (
     <YardPage>
+      <JsonLd
+        data={[
+          profileJsonLd({
+            name: agencyName,
+            description: bio,
+            path: agencyPath,
+            image: avatar,
+            type: "Organization",
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: agencyName, path: agencyPath },
+          ]),
+        ]}
+      />
       <YardHeader tone="night" eyebrow="Agency" title={agencyName} description={bio} />
 
       <YardContainer>
@@ -58,7 +111,11 @@ export default async function AgencyProfilePage({ params }: Params) {
           <div className="h-24 w-24 overflow-hidden rounded-full bg-accent">
             {avatar ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={`/api/uploads/${avatar}`} alt="" className="h-full w-full object-cover" />
+              <img
+                src={`/api/uploads/${avatar}`}
+                alt={`${agencyName} logo`}
+                className="h-full w-full object-cover"
+              />
             ) : (
               <span className="flex h-full w-full items-center justify-center text-2xl font-bold text-white">
                 {agencyName.slice(0, 1).toUpperCase()}

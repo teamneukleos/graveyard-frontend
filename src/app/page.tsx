@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { and, count, desc, eq, like, or } from "drizzle-orm";
 import { FeedGrid, type FeedItem } from "@/components/FeedCard";
 import {
@@ -17,6 +18,13 @@ import { submissions } from "@/db/schema";
 import { getActiveCategoryNames } from "@/lib/categories";
 import { getUpcomingEvents, withEventAvailability } from "@/lib/events";
 import { getCategoryLeaders, getVoteCountsForIds, getWeeklyLeaderboard } from "@/lib/leaderboards";
+import {
+  buildMetadata,
+  metaDescription,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_TAGLINE,
+} from "@/lib/seo";
 import { getCurrentVoterVotes } from "@/lib/voter";
 
 const PAGE_SIZE = 24;
@@ -27,6 +35,66 @@ type SearchParams = Promise<{
   status?: string;
   q?: string;
 }>;
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const category = params.category;
+  const statusFilter = params.status;
+  const q = params.q?.trim();
+
+  if (q) {
+    return buildMetadata({
+      title: `Search “${q}”`,
+      description: metaDescription(
+        `Results for “${q}” on Graveyard. Buried campaigns, film, and branding that never went live.`,
+      ),
+      path: `/?q=${encodeURIComponent(q)}`,
+    });
+  }
+  if (category) {
+    return buildMetadata({
+      title: `${category} graves`,
+      description: metaDescription(
+        `Browse rejected and shelved ${category} work on Graveyard. Vote for what should have gone LIVE.`,
+      ),
+      path: `/?category=${encodeURIComponent(category)}`,
+      keywords: [category, "Graveyard awards", "rejected creative work"],
+    });
+  }
+  if (statusFilter === "winner") {
+    return buildMetadata({
+      title: "Should have gone LIVE",
+      description: metaDescription(
+        "Award-winning rejected work that judges say should have gone LIVE. Public votes and industry review on Graveyard.",
+      ),
+      path: "/?status=winner",
+    });
+  }
+  if (statusFilter === "shortlisted") {
+    return buildMetadata({
+      title: "Shortlist",
+      description: metaDescription(
+        "Shortlisted graves on Graveyard. Shelved campaigns and unpublished creative work in the running for LIVE.",
+      ),
+      path: "/?status=shortlisted",
+    });
+  }
+
+  return {
+    ...buildMetadata({
+      title: `${SITE_NAME} | ${SITE_TAGLINE}`,
+      description: SITE_DESCRIPTION,
+      path: "/",
+    }),
+    title: {
+      absolute: `${SITE_NAME} | ${SITE_TAGLINE}`,
+    },
+  };
+}
 
 export default async function HomePage({
   searchParams,
@@ -111,11 +179,35 @@ export default async function HomePage({
 
   const query = { category, status: statusFilter, q };
   const showHero = showDiscovery && (Boolean(featured) || weeklyCreators.length > 0);
+  const feedTitle =
+    category ||
+    (statusFilter === "winner"
+      ? "Should have gone LIVE"
+      : statusFilter === "shortlisted"
+        ? "Shortlist"
+        : q
+          ? `“${q}”`
+          : "Latest in the yard");
+  const brandHome = showDiscovery;
 
   return (
     <main className="product-shell flex-1">
       <ScareIntro />
       <SkyDrama />
+      {brandHome ? (
+        <header className="mx-auto max-w-[1440px] px-4 pt-8 md:px-6 md:pt-10">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-mute">
+            Digital awards
+          </p>
+          <h1 className="mt-2 font-display text-[clamp(2.4rem,6vw,3.75rem)] font-bold leading-[0.95] tracking-tight text-ink">
+            {SITE_NAME}
+          </h1>
+          <p className="mt-3 max-w-xl text-[16px] leading-relaxed text-mute md:text-[17px]">
+            {SITE_TAGLINE}. Rejected, shelved, and never-produced creative work. Public votes and
+            industry review. Awarded anytime.
+          </p>
+        </header>
+      ) : null}
       {showDiscovery && trending.length > 0 ? (
         <TrendingRail items={trending} title="Trending submissions" />
       ) : null}
@@ -133,7 +225,7 @@ export default async function HomePage({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`/api/uploads/${featured.assets[0]?.filename || "placeholder"}`}
-                    alt=""
+                    alt={`${featured.title} by ${featured.user.agencyName || featured.user.name}`}
                     className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#c44500]/90 via-[#ff6a00]/25 to-transparent" />
@@ -163,9 +255,9 @@ export default async function HomePage({
                   <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-accent">
                     This week
                   </p>
-                  <h1 className="mt-1 font-display text-[1.4rem] font-bold tracking-tight md:text-[1.55rem]">
+                  <h2 className="mt-1 font-display text-[1.4rem] font-bold tracking-tight md:text-[1.55rem]">
                     Rising creators
-                  </h1>
+                  </h2>
                 </div>
                 <Link
                   href="/leaderboards/creators"
@@ -189,7 +281,7 @@ export default async function HomePage({
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={`/api/uploads/${row.avatarFilename}`}
-                          alt=""
+                          alt={`${row.name} avatar`}
                           className="h-full w-full object-cover"
                         />
                       ) : (
@@ -250,16 +342,15 @@ export default async function HomePage({
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-mute">Feed</p>
               <div className="mt-2 flex flex-wrap items-baseline gap-2">
-                <h2 className="font-display text-[36px] font-bold tracking-[-0.04em] text-ink md:text-[52px]">
-                  {category ||
-                    (statusFilter === "winner"
-                      ? "Should have gone LIVE"
-                      : statusFilter === "shortlisted"
-                        ? "Shortlist"
-                        : q
-                          ? `“${q}”`
-                          : "Latest in the yard")}
-                </h2>
+                {brandHome ? (
+                  <h2 className="font-display text-[36px] font-bold tracking-[-0.04em] text-ink md:text-[52px]">
+                    {feedTitle}
+                  </h2>
+                ) : (
+                  <h1 className="font-display text-[36px] font-bold tracking-[-0.04em] text-ink md:text-[52px]">
+                    {feedTitle}
+                  </h1>
+                )}
                 <span className="rounded-full bg-canvas px-2.5 py-0.5 text-[12px] font-bold text-mute">
                   {total}
                 </span>

@@ -1,8 +1,12 @@
+import type { Metadata } from "next";
 import { LegalDoc, LegalSection } from "@/components/LegalDoc";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Cookie Policy | Graveyard",
-};
+export const metadata: Metadata = buildMetadata({
+  title: "Cookie Policy",
+  description: "Cookies and similar technologies used by Graveyard to run the awards platform.",
+  path: "/cookies",
+});
 
 export default function CookiesPage() {
   return (

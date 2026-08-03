@@ -1,12 +1,30 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+import { JsonLd } from "@/components/JsonLd";
 import { YardContainer, YardHeader, YardPage } from "@/components/yard/YardPage";
 import { getWeeklyLeaderboard } from "@/lib/leaderboards";
+import { breadcrumbJsonLd, buildMetadata, metaDescription } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Creator leaderboard",
+  description: metaDescription(
+    "Weekly creator leaderboard on Graveyard. Ranked by public votes on rejected and shelved work.",
+  ),
+  path: "/leaderboards/creators",
+});
 
 export default async function CreatorsLeaderboardPage() {
   const rows = await getWeeklyLeaderboard("creator", 50);
 
   return (
     <YardPage>
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Leaderboards", path: "/leaderboards" },
+          { name: "Creators", path: "/leaderboards/creators" },
+        ])}
+      />
       <YardHeader
         narrow
         eyebrow="Weekly graves"
@@ -33,7 +51,7 @@ export default async function CreatorsLeaderboardPage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={`/api/uploads/${row.avatarFilename}`}
-                    alt=""
+                    alt={`${row.name} avatar`}
                     className="h-full w-full object-cover"
                   />
                 ) : (

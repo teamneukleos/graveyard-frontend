@@ -1,10 +1,19 @@
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { eq } from "drizzle-orm";
 import { SettingsForm } from "@/components/SettingsForm";
 import { YardCard, YardContainer, YardHeader, YardPage } from "@/components/yard/YardPage";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { requireSession } from "@/lib/auth";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Settings",
+  description: "Manage your Graveyard account settings.",
+  path: "/settings",
+  noIndex: true,
+});
 
 export default async function SettingsPage() {
   const session = await requireSession();

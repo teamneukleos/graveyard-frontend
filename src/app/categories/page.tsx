@@ -1,10 +1,22 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { and, count, eq } from "drizzle-orm";
+import { JsonLd } from "@/components/JsonLd";
 import { YardContainer, YardHeader, YardPage } from "@/components/yard/YardPage";
 import { db } from "@/db";
 import { submissions } from "@/db/schema";
 import { getActiveCategoryNames } from "@/lib/categories";
 import { getCategoryLeaders } from "@/lib/leaderboards";
+import { breadcrumbJsonLd, buildMetadata, itemListJsonLd, metaDescription } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Categories",
+  description: metaDescription(
+    "Explore Graveyard category plots: film, campaigns, branding, motion, and more. Vote for rejected creative work that should have gone LIVE.",
+  ),
+  path: "/categories",
+  keywords: ["creative awards categories", "Graveyard plots", "rejected advertising"],
+});
 
 export default async function CategoriesIndexPage() {
   const names = await getActiveCategoryNames();
@@ -21,6 +33,22 @@ export default async function CategoriesIndexPage() {
 
   return (
     <YardPage>
+      <JsonLd
+        data={[
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Categories", path: "/categories" },
+          ]),
+          itemListJsonLd(
+            "Graveyard categories",
+            counts.map((c, i) => ({
+              name: c.category,
+              path: `/categories/${encodeURIComponent(c.category)}`,
+              position: i + 1,
+            })),
+          ),
+        ]}
+      />
       <YardHeader
         tone="night"
         eyebrow="The plots"
@@ -40,7 +68,7 @@ export default async function CategoriesIndexPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`/api/uploads/${cover || "placeholder"}?tone=${i}`}
-                  alt=""
+                  alt={`${category} category on Graveyard`}
                   className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                 />
               </div>

@@ -226,7 +226,7 @@ export function TrendingRail({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`/api/uploads/${piece.coverFilename || "placeholder"}?tone=${i}`}
-                  alt=""
+                  alt={`${piece.title}${piece.submitter ? ` by ${piece.submitter}` : ""}`}
                   className="story-ken pointer-events-none"
                   style={{ animationDelay: `${(i % 5) * -2.4}s` }}
                   draggable={false}

@@ -1,17 +1,58 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { and, count, desc, eq } from "drizzle-orm";
 import { FeedGrid, type FeedItem } from "@/components/FeedCard";
+import { JsonLd } from "@/components/JsonLd";
 import { Pagination } from "@/components/Pagination";
 import { YardContainer, YardEmpty, YardHeader, YardPage } from "@/components/yard/YardPage";
 import { db } from "@/db";
 import { submissions } from "@/db/schema";
 import { getActiveCategoryNames } from "@/lib/categories";
 import { getVoteCountsForIds } from "@/lib/leaderboards";
+import { breadcrumbJsonLd, buildMetadata, metaDescription } from "@/lib/seo";
 import { getCurrentVoterVotes } from "@/lib/voter";
 
 const PAGE_SIZE = 24;
 
 type SearchParams = Promise<{ page?: string; category?: string; year?: string }>;
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const category = params.category;
+  const year = params.year ? Number(params.year) : undefined;
+
+  if (category) {
+    return buildMetadata({
+      title: `${category} showcase`,
+      description: metaDescription(
+        `Published ${category} graves on Graveyard. Shortlisted and LIVE rejected work you can vote on.`,
+      ),
+      path: `/showcase?category=${encodeURIComponent(category)}${year ? `&year=${year}` : ""}`,
+      keywords: [category, "Graveyard showcase", "should have gone live"],
+    });
+  }
+  if (year) {
+    return buildMetadata({
+      title: `Showcase ${year}`,
+      description: metaDescription(
+        `Graveyard showcase ${year}. Rejected and shelved creative work that earned LIVE or shortlist recognition.`,
+      ),
+      path: `/showcase?year=${year}`,
+    });
+  }
+
+  return buildMetadata({
+    title: "Showcase",
+    description: metaDescription(
+      "Browse shortlisted and LIVE graves on Graveyard. Vote for rejected campaigns, film, motion, and branding that should have gone live.",
+    ),
+    path: "/showcase",
+  });
+}
 
 export default async function ShowcasePage({
   searchParams,
@@ -76,6 +117,12 @@ export default async function ShowcasePage({
 
   return (
     <YardPage>
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Showcase", path: "/showcase" },
+        ])}
+      />
       <YardHeader
         eyebrow="Published work"
         title="Showcase"

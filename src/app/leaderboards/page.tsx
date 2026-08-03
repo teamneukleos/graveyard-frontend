@@ -1,6 +1,18 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+import { JsonLd } from "@/components/JsonLd";
 import { YardContainer, YardHeader, YardPage } from "@/components/yard/YardPage";
 import { getWeeklyLeaderboard } from "@/lib/leaderboards";
+import { breadcrumbJsonLd, buildMetadata, metaDescription } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Leaderboards",
+  description: metaDescription(
+    "Weekly Graveyard leaderboards. Creators and agencies ranked by public votes on rejected work that should have gone LIVE.",
+  ),
+  path: "/leaderboards",
+  keywords: ["creative leaderboard", "agency awards", "public voting", "Graveyard"],
+});
 
 export default async function LeaderboardsIndexPage() {
   const [creators, agencies] = await Promise.all([
@@ -10,6 +22,12 @@ export default async function LeaderboardsIndexPage() {
 
   return (
     <YardPage>
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Leaderboards", path: "/leaderboards" },
+        ])}
+      />
       <YardHeader
         eyebrow="The yard this week"
         title="Who's haunting the boards."

@@ -1,8 +1,12 @@
+import type { Metadata } from "next";
 import { LegalDoc, LegalSection } from "@/components/LegalDoc";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Privacy Policy | Graveyard",
-};
+export const metadata: Metadata = buildMetadata({
+  title: "Privacy Policy",
+  description: "How Graveyard collects, uses, and protects personal data on the awards platform.",
+  path: "/privacy",
+});
 
 export default function PrivacyPage() {
   return (

@@ -1,15 +1,41 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { and, desc, eq } from "drizzle-orm";
 import { FeedGrid, type FeedItem } from "@/components/FeedCard";
+import { JsonLd } from "@/components/JsonLd";
 import { YardContainer, YardEmpty, YardHeader, YardPage } from "@/components/yard/YardPage";
 import { db } from "@/db";
 import { submissions } from "@/db/schema";
 import { findCategoryByName } from "@/lib/categories";
 import { getCategoryLeaders, getVoteCountsForIds } from "@/lib/leaderboards";
+import { breadcrumbJsonLd, buildMetadata, itemListJsonLd, metaDescription } from "@/lib/seo";
 import { getCurrentVoterVotes } from "@/lib/voter";
 
 type Params = { params: Promise<{ slug: string }> };
+
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  const { slug } = await params;
+  const category = decodeURIComponent(slug);
+  const known = await findCategoryByName(category);
+  if (!known?.active) {
+    return buildMetadata({
+      title: "Category not found",
+      description: "This Graveyard category is unavailable.",
+      path: `/categories/${encodeURIComponent(category)}`,
+      noIndex: true,
+    });
+  }
+
+  return buildMetadata({
+    title: `${category} awards`,
+    description: metaDescription(
+      `Vote for the strongest unseen ${category} work on Graveyard. Rejected and shelved entries ranked by public votes.`,
+    ),
+    path: `/categories/${encodeURIComponent(category)}`,
+    keywords: [category, "Graveyard", "creative awards", "should have gone live"],
+  });
+}
 
 export default async function CategoryPage({ params }: Params) {
   const { slug } = await params;
@@ -47,6 +73,23 @@ export default async function CategoryPage({ params }: Params) {
 
   return (
     <YardPage>
+      <JsonLd
+        data={[
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Categories", path: "/categories" },
+            { name: category, path: `/categories/${encodeURIComponent(category)}` },
+          ]),
+          itemListJsonLd(
+            `${category} on Graveyard`,
+            items.slice(0, 20).map((item, i) => ({
+              name: item.title,
+              path: `/showcase/${item.id}`,
+              position: i + 1,
+            })),
+          ),
+        ]}
+      />
       <YardHeader
         tone="night"
         eyebrow="Category plot"
@@ -81,7 +124,7 @@ export default async function CategoryPage({ params }: Params) {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`/api/uploads/${leader.coverFilename || "placeholder"}?tone=${i}`}
-                      alt=""
+                      alt={`${leader.title} by ${leader.submitter}`}
                       className="h-full w-full object-cover"
                     />
                   </div>

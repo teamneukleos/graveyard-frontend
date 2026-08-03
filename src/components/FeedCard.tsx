@@ -25,7 +25,7 @@ export function FeedCard({ item, index = 0 }: { item: FeedItem; index?: number }
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={`/api/uploads/${item.coverFilename || "placeholder"}?tone=${index}`}
-          alt=""
+          alt={`${item.title} by ${item.submitter}`}
           className="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-[1.03]"
         />
         {isWinner ? (
