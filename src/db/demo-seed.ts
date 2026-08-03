@@ -102,9 +102,9 @@ async function insertPublishedPiece(opts: {
   await db.insert(assets).values({
     id: uuid(),
     submissionId: id,
-    filename: "placeholder",
+    filename: `cover-${id.slice(0, 8)}.jpg`,
     originalName: `${opts.title}.jpg`,
-    mimeType: "image/svg+xml",
+    mimeType: "image/jpeg",
     size: 0,
     createdAt: opts.now,
   });
@@ -211,6 +211,45 @@ async function ensureDemoVotes(voterIds: string[]) {
   }
 }
 
+/** Rename legacy shared "placeholder" assets so each piece gets a unique remote cover. */
+async function upgradePlaceholderAssets() {
+  const rows = await db.select().from(assets).where(eq(assets.filename, "placeholder"));
+  for (const row of rows) {
+    await db
+      .update(assets)
+      .set({
+        filename: `cover-${row.submissionId.slice(0, 8)}.jpg`,
+        mimeType: "image/jpeg",
+      })
+      .where(eq(assets.id, row.id));
+  }
+  if (rows.length > 0) {
+    console.log(`[demo-seed] upgraded ${rows.length} placeholder covers`);
+  }
+}
+
+async function ensureDemoAvatars() {
+  const creators = await db.query.users.findMany({
+    where: eq(users.role, "creator"),
+  });
+  for (const user of creators) {
+    if (user.avatarFilename) continue;
+    await db
+      .update(users)
+      .set({ avatarFilename: `avatar-${user.id.slice(0, 8)}.jpg` })
+      .where(eq(users.id, user.id));
+  }
+  const judge = await db.query.users.findFirst({
+    where: eq(users.email, "judge@graveyard.studio"),
+  });
+  if (judge && !judge.avatarFilename) {
+    await db
+      .update(users)
+      .set({ avatarFilename: `avatar-${judge.id.slice(0, 8)}.jpg` })
+      .where(eq(users.id, judge.id));
+  }
+}
+
 let seeding: Promise<void> | null = null;
 
 async function runDemoSeed() {
@@ -274,7 +313,7 @@ async function runDemoSeed() {
         agencyName: null,
         agencySlug: null,
         bio: "Independent creator burying briefs that never saw daylight.",
-        avatarFilename: null,
+        avatarFilename: `avatar-${creatorId.slice(0, 8)}.jpg`,
         emailVerifiedAt: now,
         googleId: null,
         createdAt: now,
@@ -288,7 +327,7 @@ async function runDemoSeed() {
         agencyName: "Wura Collective",
         agencySlug: "wura-collective",
         bio: "Lagos studio for campaigns that almost went live.",
-        avatarFilename: null,
+        avatarFilename: `avatar-${agencyId.slice(0, 8)}.jpg`,
         emailVerifiedAt: now,
         googleId: null,
         createdAt: now,
@@ -374,6 +413,9 @@ async function runDemoSeed() {
       [admin?.id, creator.id, agency.id, judge.id].filter(Boolean) as string[],
     );
   }
+
+  await upgradePlaceholderAssets();
+  await ensureDemoAvatars();
 }
 
 /** Idempotent demo seed — safe to call on every boot (no-ops when data exists). */
