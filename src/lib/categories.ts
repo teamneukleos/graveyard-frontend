@@ -1,7 +1,6 @@
-import { asc, eq } from "drizzle-orm";
-import { db } from "@/db";
-import { categories, type CategoryRow } from "@/db/schema";
-import { CATEGORY_COLORS, type Category } from "@/lib/constants";
+import { CATEGORY_COLORS, categoryColor, type Category } from "@/lib/constants";
+import { nestAdminCategories, nestCategories } from "@/lib/nest/client";
+import { safeApi } from "@/lib/nest/mappers";
 
 export type CategoryListItem = {
   id: string;
@@ -11,6 +10,7 @@ export type CategoryListItem = {
   active: boolean;
   colorBg: string;
   colorFg: string;
+  description: string | null;
 };
 
 export function slugifyCategory(name: string) {
@@ -21,31 +21,43 @@ export function slugifyCategory(name: string) {
     .replace(/^-|-$/g, "");
 }
 
-function toListItem(row: CategoryRow): CategoryListItem {
+function toListItem(row: {
+  id: string;
+  name: string;
+  slug: string;
+  sortOrder: number;
+  description: string | null;
+  isActive?: boolean;
+}): CategoryListItem {
+  const colors = categoryColor(row.name);
   return {
     id: row.id,
     name: row.name,
     slug: row.slug,
     sortOrder: row.sortOrder,
-    active: row.active,
-    colorBg: row.colorBg,
-    colorFg: row.colorFg,
+    active: row.isActive ?? true,
+    colorBg: colors.bg,
+    colorFg: colors.fg,
+    description: row.description,
   };
 }
 
 export async function getAllCategories() {
-  const rows = await db.query.categories.findMany({
-    orderBy: [asc(categories.sortOrder), asc(categories.name)],
-  });
-  return rows.map(toListItem);
+  const rows = await safeApi(nestCategories(), []);
+  return rows.map(toListItem).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+}
+
+/** Includes inactive categories (admin). Falls back to public list. */
+export async function getAdminCategories() {
+  const rows = await safeApi(nestAdminCategories(), []);
+  if (rows.length) {
+    return rows.map(toListItem).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+  }
+  return getAllCategories();
 }
 
 export async function getActiveCategories() {
-  const rows = await db.query.categories.findMany({
-    where: eq(categories.active, true),
-    orderBy: [asc(categories.sortOrder), asc(categories.name)],
-  });
-  return rows.map(toListItem);
+  return getAllCategories();
 }
 
 export async function getActiveCategoryNames() {
@@ -54,24 +66,24 @@ export async function getActiveCategoryNames() {
 }
 
 export async function isActiveCategoryName(name: string) {
-  const row = await db.query.categories.findFirst({
-    where: eq(categories.name, name),
-  });
-  return Boolean(row?.active);
+  const rows = await getActiveCategories();
+  return rows.some((c) => c.name === name);
 }
 
 export async function findCategoryByName(name: string) {
-  return db.query.categories.findFirst({
-    where: eq(categories.name, name),
-  });
+  const rows = await getActiveCategories();
+  return rows.find((c) => c.name === name) ?? null;
+}
+
+export async function findCategoryBySlug(slug: string) {
+  const rows = await getActiveCategories();
+  return rows.find((c) => c.slug === slug || c.name === slug) ?? null;
 }
 
 export async function isKnownCategoryName(name: string) {
-  const row = await findCategoryByName(name);
-  return Boolean(row);
+  return Boolean(await findCategoryByName(name));
 }
 
-/** Resolve display colors from DB row or seeded constants fallback. */
 export function categoryColorFromRow(category: string, row?: CategoryListItem | null) {
   if (row) {
     return { bg: row.colorBg, fg: row.colorFg, soft: row.colorBg };

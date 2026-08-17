@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { and, count, desc, eq, like, or } from "drizzle-orm";
 import { FeedGrid, type FeedItem } from "@/components/FeedCard";
 import {
   AgenciesColorBand,
@@ -13,11 +12,16 @@ import { Pagination } from "@/components/Pagination";
 import { ScareIntro } from "@/components/ScareIntro";
 import { SkyDrama } from "@/components/SkyDrama";
 import { TrendingRail } from "@/components/TrendingRail";
-import { db } from "@/db";
-import { submissions } from "@/db/schema";
-import { getActiveCategoryNames } from "@/lib/categories";
-import { getUpcomingEvents, withEventAvailability } from "@/lib/events";
-import { getCategoryLeaders, getVoteCountsForIds, getWeeklyLeaderboard } from "@/lib/leaderboards";
+import { findCategoryByName, findCategoryBySlug, getActiveCategories } from "@/lib/categories";
+import { getUpcomingEventsWithAvailability } from "@/lib/events";
+import { getTrendingWorks, getWeeklyLeaderboard } from "@/lib/leaderboards";
+import { nestFeatured, nestListSubmissions } from "@/lib/nest/client";
+import { safeApi, submissionToFeedItem } from "@/lib/nest/mappers";
+import {
+  listAllPublicSubmissions,
+  listShowcaseItems,
+  showcaseItemToFeedFields,
+} from "@/lib/nest/queries";
 import {
   buildMetadata,
   metaDescription,
@@ -25,7 +29,6 @@ import {
   SITE_NAME,
   SITE_TAGLINE,
 } from "@/lib/seo";
-import { getCurrentVoterVotes } from "@/lib/voter";
 
 const PAGE_SIZE = 24;
 
@@ -103,90 +106,118 @@ export default async function HomePage({
 }) {
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
-  const category = params.category;
+  const categoryParam = params.category;
   const statusFilter = params.status;
-  const q = params.q?.trim();
-  const activeCategories = await getActiveCategoryNames();
+  const q = params.q?.trim()?.toLowerCase();
+  const activeCategories = await getActiveCategories();
 
-  const conditions = [eq(submissions.published, true)];
-  if (category && activeCategories.includes(category)) {
-    conditions.push(eq(submissions.category, category));
-  }
-  if (statusFilter === "winner") {
-    conditions.push(eq(submissions.status, "winner"));
-  } else if (statusFilter === "shortlisted") {
-    conditions.push(eq(submissions.status, "shortlisted"));
-  }
-  if (q) {
-    conditions.push(
-      or(
-        like(submissions.title, `%${q}%`),
-        like(submissions.concept, `%${q}%`),
-        like(submissions.category, `%${q}%`),
-      )!,
+  const categoryRow = categoryParam
+    ? (await findCategoryBySlug(categoryParam)) || (await findCategoryByName(categoryParam))
+    : null;
+
+  let items: FeedItem[] = [];
+  let total = 0;
+  let totalPages = 1;
+  let currentPage = page;
+  let offset = 0;
+
+  if (statusFilter === "winner" || statusFilter === "shortlisted") {
+    const placement = statusFilter === "winner" ? "WINNER" : "SHORTLISTED";
+    let showcase = await listShowcaseItems({
+      placement,
+      category: categoryRow?.slug,
+    });
+    if (q) {
+      showcase = showcase.filter(
+        (s) =>
+          s.title.toLowerCase().includes(q) ||
+          s.categoryName.toLowerCase().includes(q) ||
+          s.creatorName.toLowerCase().includes(q),
+      );
+    }
+    total = showcase.length;
+    totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    currentPage = Math.min(page, totalPages);
+    offset = (currentPage - 1) * PAGE_SIZE;
+    items = showcase.slice(offset, offset + PAGE_SIZE).map(showcaseItemToFeedFields);
+  } else if (q) {
+    const all = await listAllPublicSubmissions({ category: categoryRow?.slug });
+    const filtered = all.filter(
+      (s) =>
+        s.title.toLowerCase().includes(q) ||
+        s.concept.toLowerCase().includes(q) ||
+        s.category.name.toLowerCase().includes(q),
     );
+    total = filtered.length;
+    totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    currentPage = Math.min(page, totalPages);
+    offset = (currentPage - 1) * PAGE_SIZE;
+    items = filtered.slice(offset, offset + PAGE_SIZE).map((piece) => submissionToFeedItem(piece));
+  } else {
+    const listed = await safeApi(
+      nestListSubmissions({
+        category: categoryRow?.slug,
+        page,
+        limit: PAGE_SIZE,
+      }),
+      { data: [], total: 0, page: 1, limit: PAGE_SIZE },
+    );
+    total = listed.total;
+    totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    currentPage = Math.min(page, Math.max(1, totalPages));
+    offset = (currentPage - 1) * PAGE_SIZE;
+    items = listed.data.map((piece) => submissionToFeedItem(piece));
   }
 
-  const where = and(...conditions);
+  const showDiscovery = !q && !categoryParam && !statusFilter && currentPage === 1;
 
-  const [{ total }] = await db.select({ total: count() }).from(submissions).where(where);
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const offset = (currentPage - 1) * PAGE_SIZE;
-
-  const rows = await db.query.submissions.findMany({
-    where,
-    orderBy: [desc(submissions.updatedAt)],
-    limit: PAGE_SIZE,
-    offset,
-    with: { user: true, assets: true },
-  });
-
-  const showDiscovery = !q && !category && !statusFilter && currentPage === 1;
-
-  const [featured, trending, weeklyCreators, weeklyAgencies, upcomingEvents] = showDiscovery
+  const [
+    featuredItems,
+    showcaseWinners,
+    trending,
+    weeklyCreators,
+    weeklyAgencies,
+    upcomingEvents,
+  ] = showDiscovery
     ? await Promise.all([
-        db.query.submissions.findFirst({
-          where: and(eq(submissions.published, true), eq(submissions.status, "winner")),
-          orderBy: [desc(submissions.updatedAt)],
-          with: { user: true, assets: true },
-        }),
-        getCategoryLeaders(undefined, 12),
+        safeApi(nestFeatured(), []),
+        listShowcaseItems({ placement: "WINNER" }),
+        getTrendingWorks(12),
         getWeeklyLeaderboard("creator", 6),
         getWeeklyLeaderboard("agency", 9),
-        withEventAvailability(await getUpcomingEvents(3)),
+        getUpcomingEventsWithAvailability(3),
       ])
-    : [undefined, [], [], [], []];
+    : [[], [], [], [], [], []];
 
-  const ids = rows.map((r) => r.id);
-  const [voteCounts, voterVotes] = await Promise.all([
-    getVoteCountsForIds(ids),
-    getCurrentVoterVotes(ids),
-  ]);
+  const featured =
+    featuredItems[0]?.submission ||
+    (showcaseWinners[0]
+      ? {
+          id: showcaseWinners[0].submissionId,
+          title: showcaseWinners[0].title,
+          slug: showcaseWinners[0].slug,
+          likeCount: showcaseWinners[0].likeCount,
+          coverUrl: showcaseWinners[0].coverUrl,
+          categorySlug: showcaseWinners[0].categoryName,
+          creatorName: showcaseWinners[0].creatorName,
+          agencyName: showcaseWinners[0].agencyName,
+        }
+      : null);
 
-  const items: FeedItem[] = rows.map((piece) => ({
-    id: piece.id,
-    title: piece.title,
-    category: piece.category,
-    status: piece.status,
-    yearCreated: piece.yearCreated,
-    coverFilename: piece.assets[0]?.filename,
-    submitter: piece.user.agencyName || piece.user.name,
-    concept: piece.concept,
-    votes: voteCounts.get(piece.id) ?? 0,
-    voted: voterVotes.has(piece.id),
-  }));
-
-  const query = { category, status: statusFilter, q };
+  const query = {
+    category: categoryParam,
+    status: statusFilter,
+    q: params.q?.trim(),
+  };
   const showHero = showDiscovery && (Boolean(featured) || weeklyCreators.length > 0);
   const feedTitle =
-    category ||
+    categoryRow?.name ||
     (statusFilter === "winner"
       ? "Should have gone LIVE"
       : statusFilter === "shortlisted"
         ? "Shortlist"
         : q
-          ? `“${q}”`
+          ? `“${params.q?.trim()}”`
           : "Latest in the yard");
   const brandHome = showDiscovery;
 
@@ -203,7 +234,7 @@ export default async function HomePage({
             {SITE_NAME}
           </h1>
           <p className="mt-3 max-w-xl text-[16px] leading-relaxed text-mute md:text-[17px]">
-            {SITE_TAGLINE}. Rejected, shelved, and never-produced creative work. Public votes and
+            {SITE_TAGLINE}. Rejected, shelved, and never-produced creative work. Public likes and
             industry review. Awarded anytime.
           </p>
         </header>
@@ -215,7 +246,7 @@ export default async function HomePage({
           brand={{
             eyebrow: "Digital repository",
             name: SITE_NAME,
-            description: `${SITE_TAGLINE}. Rejected, shelved, and never-produced creative work. Public votes and industry review. Awarded anytime.`,
+            description: `${SITE_TAGLINE}. Rejected, shelved, and never-produced creative work. Public likes and industry review. Awarded anytime.`,
           }}
         />
       ) : null}
@@ -228,12 +259,12 @@ export default async function HomePage({
             }`}
           >
             {featured ? (
-              <Link href={`/showcase/${featured.id}`} className="group block h-full min-h-[320px]">
+              <Link href={`/showcase/${featured.slug}`} className="group block h-full min-h-[320px]">
                 <div className="card-media relative h-full min-h-[320px] overflow-hidden md:min-h-full">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`/api/uploads/${featured.assets[0]?.filename || "placeholder"}`}
-                    alt={`${featured.title} by ${featured.user.agencyName || featured.user.name}`}
+                    src={featured.coverUrl || "/brand/logo-on-dark.png"}
+                    alt={`${featured.title} by ${featured.agencyName || featured.creatorName}`}
                     className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#c44500]/90 via-[#ff6a00]/25 to-transparent" />
@@ -243,14 +274,14 @@ export default async function HomePage({
                         LIVE
                       </span>
                       <span className="rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white backdrop-blur-sm">
-                        {featured.category}
+                        {featured.categorySlug}
                       </span>
                     </div>
                     <h2 className="mt-4 font-display text-[28px] font-bold leading-[1.05] tracking-tight text-white md:text-[44px]">
                       {featured.title}
                     </h2>
                     <p className="mt-2 text-[15px] font-medium text-white/75">
-                      {featured.user.agencyName || featured.user.name}
+                      {featured.agencyName || featured.creatorName}
                     </p>
                   </div>
                 </div>
@@ -285,10 +316,10 @@ export default async function HomePage({
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-white/15 ring-1 ring-white/20 md:h-9 md:w-9">
-                      {row.avatarFilename ? (
+                      {row.avatarUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={`/api/uploads/${row.avatarFilename}`}
+                          src={row.avatarUrl}
                           alt={`${row.name} avatar`}
                           className="h-full w-full object-cover"
                         />
@@ -306,14 +337,14 @@ export default async function HomePage({
                     </div>
                     <div className="shrink-0 pl-1 text-right">
                       <p className="text-[13px] font-bold tabular-nums text-white">{row.votes}</p>
-                      <p className="text-[9px] uppercase tracking-wider text-white/40">votes</p>
+                      <p className="text-[9px] uppercase tracking-wider text-white/40">likes</p>
                     </div>
                   </li>
                 ))}
               </ol>
 
               {weeklyCreators.length === 0 ? (
-                <p className="mt-6 text-[13px] text-white/45">Quiet plots. Be the first vote.</p>
+                <p className="mt-6 text-[13px] text-white/45">Quiet plots. Be the first like.</p>
               ) : null}
             </div>
           </div>
@@ -323,25 +354,25 @@ export default async function HomePage({
       <div className="section-blend">
         <div className="mx-auto max-w-[1440px] px-4 py-10 md:px-6 md:py-14">
           <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-1">
-            <FilterChip href="/" active={!category && !statusFilter}>
+            <FilterChip href="/" active={!categoryParam && !statusFilter}>
               All
             </FilterChip>
-            <FilterChip href="/?status=winner" active={statusFilter === "winner" && !category}>
+            <FilterChip href="/?status=winner" active={statusFilter === "winner" && !categoryParam}>
               LIVE
             </FilterChip>
             <FilterChip
               href="/?status=shortlisted"
-              active={statusFilter === "shortlisted" && !category}
+              active={statusFilter === "shortlisted" && !categoryParam}
             >
               Shortlist
             </FilterChip>
             {activeCategories.map((cat) => (
               <FilterChip
-                key={cat}
-                href={`/?category=${encodeURIComponent(cat)}`}
-                active={category === cat}
+                key={cat.id}
+                href={`/?category=${encodeURIComponent(cat.slug)}`}
+                active={categoryRow?.slug === cat.slug || categoryParam === cat.name}
               >
-                {cat}
+                {cat.name}
               </FilterChip>
             ))}
           </div>
@@ -374,7 +405,7 @@ export default async function HomePage({
               <FeedGrid items={items} startIndex={offset} />
             ) : (
               <p className="rounded-[24px] bg-canvas py-20 text-center text-[14px] text-mute">
-                Nothing in this plot yet.
+                Nothing in this plot yet. Start the Nest API or publish a submission.
               </p>
             )}
           </div>
@@ -386,7 +417,9 @@ export default async function HomePage({
       {showDiscovery ? (
         <>
           <EventsColorBand events={upcomingEvents} />
-          <CategoriesColorBand categories={activeCategories.map((name) => ({ name }))} />
+          <CategoriesColorBand
+            categories={activeCategories.map((c) => ({ name: c.name, slug: c.slug }))}
+          />
           <AgenciesColorBand rows={weeklyAgencies} />
           <LiveColorBand />
           <HowItWorksBand />

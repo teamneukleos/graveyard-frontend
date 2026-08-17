@@ -46,7 +46,7 @@ export function RequestSeatButton({
     router.refresh();
   }
 
-  const full = spotsLeft <= 0 && !requested;
+  const waitlistOnly = spotsLeft <= 0 && !requested;
 
   return (
     <div className="text-right">
@@ -55,15 +55,17 @@ export function RequestSeatButton({
       <button
         type="button"
         className="btn btn-primary mt-3 !w-full !px-3 !py-1.5 !text-[12px]"
-        disabled={loading || full}
+        disabled={loading}
         onClick={() => void toggle()}
       >
         {loading
           ? "Saving…"
           : requested
             ? "Cancel seat"
-            : full
-              ? "Full"
+            : waitlistOnly
+              ? isLoggedIn
+                ? "Join waitlist"
+                : "Log in to join waitlist"
               : isLoggedIn
                 ? "Request seat"
                 : "Log in to request"}

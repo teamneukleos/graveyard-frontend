@@ -31,9 +31,9 @@ function VerifyClient() {
         return;
       }
       setStatus("ok");
-      setMessage("Email verified. You can submit work now.");
+      setMessage("Email verified. You can log in and start submitting work.");
       setTimeout(() => {
-        router.push("/portal");
+        router.push("/login");
         router.refresh();
       }, 1200);
     })();
@@ -46,7 +46,7 @@ function VerifyClient() {
       description={message}
       footer={
         <>
-          Go to <AuthLink href="/portal">portal</AuthLink> or <AuthLink href="/login">log in</AuthLink>
+          Continue to <AuthLink href="/login">log in</AuthLink>
         </>
       }
     >

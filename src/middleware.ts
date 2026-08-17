@@ -1,22 +1,38 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jwtVerify } from "jose";
+import { decodeJwt, jwtVerify } from "jose";
 
-const COOKIE_NAME = "graveyard_session";
+const COOKIE_NAME = "graveyard_token";
 
 function secretKey() {
-  const fromEnv = process.env.AUTH_SECRET;
+  const fromEnv = process.env.JWT_SECRET?.trim();
   if (fromEnv) return new TextEncoder().encode(fromEnv);
-  return new TextEncoder().encode("graveyard-dev-secret-change-me");
+  return new TextEncoder().encode("change-me-in-production-use-a-long-random-string");
+}
+
+function mapRole(role: string) {
+  if (role === "SUPER_ADMIN" || role === "ADMIN") return "admin";
+  if (role === "JUDGE") return "judge";
+  if (role === "CREATOR") return "creator";
+  // Already-mapped lowercase (shouldn't appear in Nest tokens)
+  if (role === "admin" || role === "judge" || role === "creator") return role;
+  return null;
 }
 
 async function readRole(token: string | undefined) {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secretKey());
-    return (payload.role as string) || null;
+    if (typeof payload.role !== "string") return null;
+    return mapRole(payload.role);
   } catch {
-    return null;
+    try {
+      const payload = decodeJwt(token);
+      if (typeof payload.role !== "string") return null;
+      return mapRole(payload.role);
+    } catch {
+      return null;
+    }
   }
 }
 

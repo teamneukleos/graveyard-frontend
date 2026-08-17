@@ -4,9 +4,9 @@ import { buildMetadata } from "@/lib/seo";
 
 const ADMIN_NAV = [
   { href: "/admin", label: "Submissions" },
+  { href: "/admin/cycles", label: "Award cycles" },
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin/judges", label: "Judges" },
-  { href: "/admin/events", label: "Events" },
   { href: "/admin/analytics", label: "Analytics" },
   { href: "/settings", label: "Settings" },
 ];

@@ -3,12 +3,21 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
 import { AuthLink, AuthShell, GoogleAuthButton } from "@/components/AuthShell";
+import { PasswordField } from "@/components/PasswordField";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next");
-  const [error, setError] = useState("");
+  const oauthError = searchParams.get("error");
+  const oauthMessage = searchParams.get("message");
+  const [error, setError] = useState(
+    oauthError === "google"
+      ? oauthMessage || "Google sign-in failed."
+      : oauthError === "google_unavailable"
+        ? "Google sign-in is not configured yet."
+        : "",
+  );
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -37,8 +46,7 @@ function LoginForm() {
     if (next && next.startsWith("/") && !next.startsWith("//")) {
       router.push(next);
     } else {
-      const role = data.user.role;
-      router.push(role === "admin" ? "/admin" : role === "judge" ? "/judge" : "/portal");
+      router.push(data.redirectTo || "/portal");
     }
     router.refresh();
   }
@@ -47,40 +55,44 @@ function LoginForm() {
     <AuthShell
       eyebrow="Welcome back"
       title="Log in"
-      description="Sign in to vote, submit work, or manage your entries."
+      description="Sign in to submit work, judge, or manage the yard."
       footer={
         <>
           No account? <AuthLink href="/register">Register</AuthLink>
-          <span className="mx-2 text-line">·</span>
-          <AuthLink href="/forgot-password">Forgot password</AuthLink>
-          <p className="mt-3 text-xs text-mute/80">Demo: creator@example.com / password123</p>
+          <p className="mt-3 text-xs text-mute/80">
+            API seed admin: admin@graveyard.local / ChangeMeAdmin1!
+          </p>
         </>
       }
     >
-      <form onSubmit={onSubmit} className="space-y-4">
-        <div>
-          <label className="label" htmlFor="email">
-            Email
-          </label>
-          <input className="field" id="email" name="email" type="email" required />
+      <div className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div>
+            <label className="label" htmlFor="email">
+              Email
+            </label>
+            <input className="field" id="email" name="email" type="email" required />
+          </div>
+          <PasswordField
+            id="password"
+            name="password"
+            label="Password"
+            minLength={8}
+            required
+            labelRight={<AuthLink href="/forgot-password">Forgot password?</AuthLink>}
+          />
+          {error ? <p className="text-sm text-[#c45a16]">{error}</p> : null}
+          <button className="btn btn-primary w-full" disabled={loading} type="submit">
+            {loading ? "Signing in…" : "Sign in"}
+          </button>
+        </form>
+        <div className="flex items-center gap-3 text-[12px] uppercase tracking-[0.12em] text-mute">
+          <span className="h-px flex-1 bg-line" />
+          or
+          <span className="h-px flex-1 bg-line" />
         </div>
-        <div>
-          <label className="label" htmlFor="password">
-            Password
-          </label>
-          <input className="field" id="password" name="password" type="password" required />
-        </div>
-        {error ? <p className="text-sm text-[#c45a16]">{error}</p> : null}
-        <button className="btn btn-primary w-full" disabled={loading} type="submit">
-          {loading ? "Signing in…" : "Sign in"}
-        </button>
-      </form>
-      <div className="my-5 flex items-center gap-3 text-[12px] uppercase tracking-wider text-mute">
-        <span className="h-px flex-1 bg-line" />
-        or
-        <span className="h-px flex-1 bg-line" />
+        <GoogleAuthButton nextPath={next} />
       </div>
-      <GoogleAuthButton />
     </AuthShell>
   );
 }

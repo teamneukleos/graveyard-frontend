@@ -1,17 +1,7 @@
-import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/db";
-import { submissions } from "@/db/schema";
-import { requireSession } from "@/lib/auth";
-import { CURRENT_YEAR } from "@/lib/constants";
-
-const publishSchema = z.object({
-  ids: z.array(z.string()).min(1),
-  published: z.boolean(),
-  showcaseYear: z.number().int().optional(),
-  markWinners: z.boolean().optional(),
-});
+import { getAccessToken, requireSession } from "@/lib/auth";
+import { NestApiError, nestAdminBulkSubmissions } from "@/lib/nest/client";
 
 export async function POST(request: Request) {
   const session = await requireSession(["admin"]);
@@ -19,33 +9,44 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const token = await getAccessToken();
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const body = await request.json();
-    const data = publishSchema.parse(body);
-    const now = new Date().toISOString();
-    const year = data.showcaseYear ?? CURRENT_YEAR;
+    const body = z
+      .object({
+        ids: z.array(z.string().min(1)).min(1),
+        published: z.boolean(),
+        showcaseYear: z.number().optional(),
+        markWinners: z.boolean().optional(),
+      })
+      .parse(await request.json());
 
-    for (const id of data.ids) {
-      const existing = await db.query.submissions.findFirst({
-        where: eq(submissions.id, id),
-      });
-      if (!existing) continue;
-
-      await db
-        .update(submissions)
-        .set({
-          published: data.published,
-          showcaseYear: data.published ? year : null,
-          status: data.markWinners ? "winner" : existing.status,
-          updatedAt: now,
-        })
-        .where(eq(submissions.id, id));
+    let action: "publish" | "unpublish" | "winners" = body.published
+      ? "publish"
+      : "unpublish";
+    if (body.published && body.markWinners) {
+      action = "winners";
     }
 
-    return NextResponse.json({ ok: true });
+    const result = await nestAdminBulkSubmissions(
+      {
+        ids: body.ids,
+        action,
+        markCyclePublished: true,
+      },
+      token,
+    );
+
+    return NextResponse.json({ ok: true, updated: result.updated });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid publish payload." }, { status: 400 });
+    }
+    if (error instanceof NestApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json({ error: "Publish failed." }, { status: 500 });
   }

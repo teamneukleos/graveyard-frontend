@@ -1,13 +1,12 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { and, eq } from "drizzle-orm";
 import { AwardsHistory, toAwardEntries } from "@/components/AwardsHistory";
 import { FeedGrid, type FeedItem } from "@/components/FeedCard";
 import { JsonLd } from "@/components/JsonLd";
 import { YardContainer, YardEmpty, YardHeader, YardPage, YardStat } from "@/components/yard/YardPage";
-import { db } from "@/db";
-import { submissions, users } from "@/db/schema";
+import { coverUrlOf, mapNestStatus, submissionToFeedItem } from "@/lib/nest/mappers";
+import { findSubmissionsByCreator } from "@/lib/nest/queries";
 import {
   breadcrumbJsonLd,
   buildMetadata,
@@ -19,8 +18,9 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { id } = await params;
-  const user = await db.query.users.findFirst({ where: eq(users.id, id) });
-  if (!user || !user.active) {
+  const published = await findSubmissionsByCreator(id);
+  const creator = published[0]?.creator;
+  if (!creator) {
     return buildMetadata({
       title: "Creator not found",
       description: "This creator profile is unavailable.",
@@ -30,15 +30,14 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   }
 
   return buildMetadata({
-    title: user.name,
+    title: creator.name,
     description: metaDescription(
-      user.bio ||
-        `${user.name} on Graveyard. Rejected and shelved creative work that should have gone LIVE.`,
+      `${creator.name} on Graveyard. Rejected and shelved creative work that should have gone LIVE.`,
     ),
-    path: `/creators/${user.id}`,
-    image: user.avatarFilename ? `/api/uploads/${user.avatarFilename}` : undefined,
+    path: `/creators/${creator.id}`,
+    image: creator.avatarUrl || undefined,
     type: "profile",
-    keywords: [user.name, user.agencyName || "", "Graveyard creator", "creative awards"].filter(
+    keywords: [creator.name, creator.agencyName || "", "Graveyard creator", "creative awards"].filter(
       Boolean,
     ),
   });
@@ -46,57 +45,54 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function CreatorProfilePage({ params }: Params) {
   const { id } = await params;
-  const user = await db.query.users.findFirst({ where: eq(users.id, id) });
-  if (!user || !user.active) notFound();
+  const published = await findSubmissionsByCreator(id);
+  const creator = published[0]?.creator;
+  if (!creator) notFound();
 
-  const published = await db.query.submissions.findMany({
-    where: and(eq(submissions.userId, user.id), eq(submissions.published, true)),
-    with: { assets: true, votes: true },
-  });
-
-  const voteTotal = published.reduce((sum, s) => sum + s.votes.length, 0);
-  const awards = toAwardEntries(published);
+  const voteTotal = published.reduce((sum, s) => sum + s.likeCount, 0);
+  const awards = toAwardEntries(
+    published.map((s) => ({
+      id: s.slug,
+      title: s.title,
+      category: s.category.name,
+      status: mapNestStatus(s.status),
+      showcaseYear: s.publishedAt ? new Date(s.publishedAt).getFullYear() : null,
+      yearCreated: s.yearCreated,
+      coverUrl: coverUrlOf(s),
+    })),
+  );
   const liveCount = awards.filter((a) => a.status === "winner").length;
 
-  const items: FeedItem[] = published.map((piece) => ({
-    id: piece.id,
-    title: piece.title,
-    category: piece.category,
-    status: piece.status,
-    yearCreated: piece.yearCreated,
-    coverFilename: piece.assets[0]?.filename,
-    submitter: user.agencyName || user.name,
-  }));
+  const items: FeedItem[] = published.map((piece) => submissionToFeedItem(piece));
 
   return (
     <YardPage>
       <JsonLd
         data={[
           profileJsonLd({
-            name: user.name,
-            description: user.bio || undefined,
-            path: `/creators/${user.id}`,
-            image: user.avatarFilename,
+            name: creator.name,
+            path: `/creators/${creator.id}`,
+            image: creator.avatarUrl,
             type: "Person",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
-            { name: user.name, path: `/creators/${user.id}` },
+            { name: creator.name, path: `/creators/${creator.id}` },
           ]),
         ]}
       />
       <YardHeader
         tone="night"
         eyebrow="Creator"
-        title={user.name}
-        description={user.bio || "Work that should have gone LIVE."}
+        title={creator.name}
+        description="Work that should have gone LIVE."
         actions={
-          user.agencyName ? (
+          creator.agencyName ? (
             <Link
-              href={`/agencies/${encodeURIComponent(user.agencySlug || user.agencyName)}`}
+              href={`/agencies/${encodeURIComponent(creator.agencyName)}`}
               className="btn btn-primary"
             >
-              {user.agencyName}
+              {creator.agencyName}
             </Link>
           ) : undefined
         }
@@ -105,16 +101,16 @@ export default async function CreatorProfilePage({ params }: Params) {
       <YardContainer>
         <div className="mb-10 flex flex-wrap items-center gap-6">
           <div className="h-24 w-24 overflow-hidden rounded-full bg-ink">
-            {user.avatarFilename ? (
+            {creator.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={`/api/uploads/${user.avatarFilename}`}
-                alt={`${user.name} avatar`}
+                src={creator.avatarUrl}
+                alt={`${creator.name} avatar`}
                 className="h-full w-full object-cover"
               />
             ) : (
               <span className="flex h-full w-full items-center justify-center text-2xl font-bold text-white">
-                {user.name.slice(0, 1).toUpperCase()}
+                {creator.name.slice(0, 1).toUpperCase()}
               </span>
             )}
           </div>
@@ -130,10 +126,7 @@ export default async function CreatorProfilePage({ params }: Params) {
           LIVE winners and shortlists, by showcase year.
         </p>
         <div className="mt-6">
-          <AwardsHistory
-            awards={awards}
-            emptyLabel="No LIVE or shortlist awards yet."
-          />
+          <AwardsHistory awards={awards} emptyLabel="No LIVE or shortlist awards yet." />
         </div>
 
         <h2 className="mt-14 font-display text-3xl tracking-tight text-ink">Published work</h2>

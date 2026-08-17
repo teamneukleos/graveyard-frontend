@@ -1,16 +1,18 @@
-import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { v4 as uuid } from "uuid";
 import { z } from "zod";
-import { db } from "@/db";
-import { reviews, submissions } from "@/db/schema";
-import { requireSession } from "@/lib/auth";
+import { getAccessToken, requireSession } from "@/lib/auth";
+import {
+  NestApiError,
+  nestAwardCycles,
+  nestUpsertScore,
+} from "@/lib/nest/client";
 
 const reviewSchema = z.object({
   submissionId: z.string().min(1),
   score: z.number().min(0).max(10),
-  comment: z.string().default(""),
-  shortlisted: z.boolean().default(false),
+  comment: z.string().optional(),
+  shortlisted: z.boolean().optional(),
+  cycleId: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -19,76 +21,56 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const token = await getAccessToken();
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const data = reviewSchema.parse(body);
 
-    const submission = await db.query.submissions.findFirst({
-      where: eq(submissions.id, data.submissionId),
-    });
+    const cycles = await nestAwardCycles();
+    const cycle =
+      (data.cycleId ? cycles.find((c) => c.id === data.cycleId) : null) ||
+      cycles.find((c) => c.status === "JUDGING") ||
+      cycles.find((c) => c.status === "UPCOMING");
 
-    if (!submission) {
-      return NextResponse.json({ error: "Submission not found." }, { status: 404 });
+    if (!cycle) {
+      return NextResponse.json(
+        { error: "No active award cycle available for scoring." },
+        { status: 400 },
+      );
     }
 
-    if (submission.status === "draft") {
-      return NextResponse.json({ error: "Cannot review a draft." }, { status: 400 });
-    }
+    const overall = Math.max(1, Math.min(10, Math.round(data.score || 1)));
 
-    const now = new Date().toISOString();
-    const existing = await db.query.reviews.findFirst({
-      where: and(
-        eq(reviews.submissionId, data.submissionId),
-        eq(reviews.judgeId, session.id),
-      ),
-    });
-
-    if (existing) {
-      await db
-        .update(reviews)
-        .set({
-          score: data.score,
-          comment: data.comment.trim(),
-          shortlisted: data.shortlisted,
-          updatedAt: now,
-        })
-        .where(eq(reviews.id, existing.id));
-    } else {
-      await db.insert(reviews).values({
-        id: uuid(),
+    const score = await nestUpsertScore(
+      cycle.id,
+      {
         submissionId: data.submissionId,
-        judgeId: session.id,
-        score: data.score,
-        comment: data.comment.trim(),
-        shortlisted: data.shortlisted,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
+        overall,
+        comment: data.comment?.trim() || undefined,
+      },
+      token,
+    );
 
-    let nextStatus = submission.status;
-    if (data.shortlisted && !["shortlisted", "winner"].includes(submission.status)) {
-      nextStatus = "shortlisted";
-    } else if (submission.status === "submitted") {
-      nextStatus = "under_review";
-    }
-
-    if (nextStatus !== submission.status) {
-      await db
-        .update(submissions)
-        .set({ status: nextStatus, updatedAt: now })
-        .where(eq(submissions.id, data.submissionId));
-    }
-
-    const updated = await db.query.submissions.findFirst({
-      where: eq(submissions.id, data.submissionId),
-      with: { reviews: { with: { judge: true } }, assets: true, user: true },
+    return NextResponse.json({
+      review: {
+        submissionId: data.submissionId,
+        score: overall,
+        comment: data.comment?.trim() || "",
+        shortlisted: Boolean(data.shortlisted),
+        cycleId: cycle.id,
+        nest: score,
+      },
     });
-
-    return NextResponse.json({ submission: updated });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid review data." }, { status: 400 });
+    }
+    if (error instanceof NestApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json({ error: "Could not save review." }, { status: 500 });
   }

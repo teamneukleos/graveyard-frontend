@@ -5,7 +5,7 @@ import { FormEvent, useState } from "react";
 import { SUBMITTER_TYPES } from "@/lib/constants";
 import { uploadAssets } from "@/lib/uploads";
 
-type Asset = { id: string; originalName: string; filename: string };
+type Asset = { id: string; originalName: string; filename: string; url?: string | null };
 
 type Submission = {
   id: string;
@@ -15,7 +15,7 @@ type Submission = {
   teamMembers: string;
   yearCreated: number;
   concept: string;
-  whyNeverLive: string;
+  whyNeverLived: string;
   status: string;
   assets: Asset[];
 };
@@ -50,7 +50,7 @@ export function SubmissionEditor({
         teamMembers: form.get("teamMembers"),
         yearCreated: Number(form.get("yearCreated")),
         concept: form.get("concept"),
-        whyNeverLive: form.get("whyNeverLive"),
+        whyNeverLived: form.get("whyNeverLived"),
         status,
       }),
     });
@@ -73,13 +73,41 @@ export function SubmissionEditor({
     if (uploaded.succeeded.length) {
       setAssets((prev) => [
         ...prev,
-        ...uploaded.succeeded.map((r) => r.asset!).filter(Boolean),
+        ...uploaded.succeeded
+          .map((r) => r.asset)
+          .filter((asset): asset is Asset => Boolean(asset))
+          .map((asset) => ({
+            ...asset,
+            url: asset.url || asset.filename,
+          })),
       ]);
     }
     if (uploaded.errorMessage) {
       setError(uploaded.errorMessage);
     }
     router.refresh();
+  }
+
+  async function removeAsset(assetId: string) {
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/submissions/${submission.id}/assets/${assetId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "Could not remove asset.");
+        setLoading(false);
+        return;
+      }
+      setAssets((prev) => prev.filter((asset) => asset.id !== assetId));
+      router.refresh();
+    } catch {
+      setError("Could not remove asset.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -163,14 +191,14 @@ export function SubmissionEditor({
       </div>
 
       <div>
-        <label className="label" htmlFor="whyNeverLive">
+        <label className="label" htmlFor="whyNeverLived">
           Why the work never went live
         </label>
         <textarea
           className="field min-h-28"
-          id="whyNeverLive"
-          name="whyNeverLive"
-          defaultValue={submission.whyNeverLive}
+          id="whyNeverLived"
+          name="whyNeverLived"
+          defaultValue={submission.whyNeverLived}
         />
       </div>
 
@@ -187,12 +215,25 @@ export function SubmissionEditor({
           onChange={(e) => uploadFiles(e.target.files)}
         />
         <p className="mt-2 text-xs text-ash">Up to 12 files total per project.</p>
-        <ul className="mt-3 space-y-1 text-sm text-ash">
+        <ul className="mt-3 space-y-2 text-sm text-ash">
           {assets.map((asset) => (
-            <li key={asset.id}>
-              <a className="text-moss hover:underline" href={`/api/uploads/${asset.filename}`}>
+            <li key={asset.id} className="flex items-center justify-between gap-3">
+              <a
+                className="min-w-0 truncate text-moss hover:underline"
+                href={asset.url || asset.filename}
+                target="_blank"
+                rel="noreferrer"
+              >
                 {asset.originalName}
               </a>
+              <button
+                type="button"
+                className="shrink-0 text-[12px] font-semibold text-ember hover:underline"
+                disabled={loading}
+                onClick={() => void removeAsset(asset.id)}
+              >
+                Remove
+              </button>
             </li>
           ))}
         </ul>

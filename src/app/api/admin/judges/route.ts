@@ -1,29 +1,26 @@
-import { desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { v4 as uuid } from "uuid";
 import { z } from "zod";
-import { db } from "@/db";
-import { users } from "@/db/schema";
-import { hashPassword, requireSession } from "@/lib/auth";
+import { getAccessToken, requireSession } from "@/lib/auth";
+import {
+  NestApiError,
+  nestCreateManagedUser,
+  nestListUsers,
+  nestUpdateUserRole,
+} from "@/lib/nest/client";
 
-const createJudgeSchema = z.object({
-  email: z.string().email(),
-  name: z.string().min(2),
-  password: z.string().min(8),
-});
-
-const patchJudgeSchema = z.object({
-  id: z.string().min(1),
-  active: z.boolean(),
-});
-
-function serializeJudge(j: typeof users.$inferSelect) {
+function serializeJudge(user: {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  createdAt: string;
+}) {
   return {
-    id: j.id,
-    email: j.email,
-    name: j.name,
-    active: j.active,
-    createdAt: j.createdAt,
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    active: user.role === "JUDGE" || user.role === "ADMIN" || user.role === "SUPER_ADMIN",
+    createdAt: user.createdAt,
   };
 }
 
@@ -33,14 +30,20 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const judges = await db.query.users.findMany({
-    where: eq(users.role, "judge"),
-    orderBy: [desc(users.createdAt)],
-  });
+  const token = await getAccessToken();
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  return NextResponse.json({
-    judges: judges.map(serializeJudge),
-  });
+  try {
+    const listed = await nestListUsers({ role: "JUDGE", limit: 100 }, token);
+    return NextResponse.json({ judges: listed.data.map(serializeJudge) });
+  } catch (error) {
+    if (error instanceof NestApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    return NextResponse.json({ error: "Could not load judges." }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
@@ -49,44 +52,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const token = await getAccessToken();
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const body = await request.json();
-    const data = createJudgeSchema.parse(body);
-    const existing = await db.query.users.findFirst({
-      where: eq(users.email, data.email.toLowerCase()),
-    });
+    const body = z
+      .object({
+        name: z.string().min(1),
+        email: z.string().email(),
+        password: z.string().min(8),
+      })
+      .parse(await request.json());
 
-    if (existing) {
-      return NextResponse.json({ error: "Email already in use." }, { status: 409 });
-    }
-
-    const judge = {
-      id: uuid(),
-      email: data.email.toLowerCase(),
-      passwordHash: await hashPassword(data.password),
-      name: data.name.trim(),
-      role: "judge" as const,
-      agencyName: null,
-      agencySlug: null,
-      bio: "",
-      avatarFilename: null,
-      emailVerifiedAt: new Date().toISOString(),
-      googleId: null,
-      active: true,
-      createdAt: new Date().toISOString(),
-    };
-
-    await db.insert(users).values(judge);
-
-    return NextResponse.json(
+    const user = await nestCreateManagedUser(
       {
-        judge: serializeJudge(judge),
+        name: body.name.trim(),
+        email: body.email.trim(),
+        password: body.password,
+        role: "JUDGE",
       },
-      { status: 201 },
+      token,
     );
+
+    return NextResponse.json({ judge: serializeJudge(user) }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid judge data." }, { status: 400 });
+    }
+    if (error instanceof NestApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json({ error: "Could not create judge." }, { status: 500 });
   }
@@ -98,30 +94,33 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const token = await getAccessToken();
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const body = await request.json();
-    const data = patchJudgeSchema.parse(body);
+    const body = z
+      .object({
+        id: z.string().min(1),
+        active: z.boolean(),
+      })
+      .parse(await request.json());
 
-    const judge = await db.query.users.findFirst({
-      where: eq(users.id, data.id),
-    });
+    // Nest has no soft-disable flag — map active to JUDGE / CREATOR.
+    const user = await nestUpdateUserRole(
+      body.id,
+      body.active ? "JUDGE" : "CREATOR",
+      token,
+    );
 
-    if (!judge || judge.role !== "judge") {
-      return NextResponse.json({ error: "Judge not found." }, { status: 404 });
-    }
-
-    await db.update(users).set({ active: data.active }).where(eq(users.id, judge.id));
-
-    const updated = await db.query.users.findFirst({
-      where: eq(users.id, judge.id),
-    });
-
-    return NextResponse.json({
-      judge: updated ? serializeJudge(updated) : null,
-    });
+    return NextResponse.json({ judge: serializeJudge(user) });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid judge data." }, { status: 400 });
+      return NextResponse.json({ error: "Invalid update." }, { status: 400 });
+    }
+    if (error instanceof NestApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json({ error: "Could not update judge." }, { status: 500 });
   }

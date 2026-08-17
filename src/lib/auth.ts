@@ -1,107 +1,92 @@
-import { compare, hash } from "bcryptjs";
-import { eq } from "drizzle-orm";
-import { SignJWT, jwtVerify } from "jose";
+import { decodeJwt, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { db } from "@/db";
-import { users, type User } from "@/db/schema";
 import type { Role } from "./constants";
+import { nestMe } from "./nest/client";
+import { mapNestRole } from "./nest/roles";
+import type { NestRole, NestUser } from "./nest/types";
 
-const COOKIE_NAME = "graveyard_session";
+/** httpOnly cookie holding the Nest API access token */
+export const ACCESS_COOKIE = "graveyard_token";
 
-function getAuthSecret() {
-  const fromEnv = process.env.AUTH_SECRET;
-  if (fromEnv) return fromEnv;
-  // Vercel serverless: allow boot without env so pages can render; set AUTH_SECRET in project settings.
-  if (process.env.VERCEL) {
-    console.warn("AUTH_SECRET is not set  -  using an insecure fallback. Set it in Vercel env.");
-    return "graveyard-vercel-insecure-fallback-change-me";
-  }
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("AUTH_SECRET must be set in production.");
-  }
-  return "graveyard-dev-secret-change-me";
-}
-
-function secretKey() {
-  return new TextEncoder().encode(getAuthSecret());
-}
+const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 export type SessionUser = {
   id: string;
   email: string;
   name: string;
   role: Role;
+  nestRole: NestRole;
   agencyName: string | null;
+  bio: string | null;
+  avatarUrl: string | null;
   emailVerified: boolean;
 };
 
-type TokenPayload = {
-  sub: string;
-  email: string;
-  name: string;
-  role: Role;
-  agencyName: string | null;
-};
-
-export async function hashPassword(password: string) {
-  return hash(password, 10);
+function jwtSecretKey() {
+  const secret = process.env.JWT_SECRET?.trim();
+  if (secret) return new TextEncoder().encode(secret);
+  return new TextEncoder().encode("change-me-in-production-use-a-long-random-string");
 }
 
-export async function verifyPassword(password: string, passwordHash: string) {
-  return compare(password, passwordHash);
-}
-
-export async function createSession(user: Pick<User, "id" | "email" | "name" | "role" | "agencyName">) {
-  const token = await new SignJWT({
+function toSessionUser(user: NestUser): SessionUser {
+  return {
+    id: user.id,
     email: user.email,
     name: user.name,
-    role: user.role as Role,
-    agencyName: user.agencyName,
-  })
-    .setProtectedHeader({ alg: "HS256" })
-    .setSubject(user.id)
-    .setIssuedAt()
-    .setExpirationTime("14d")
-    .sign(secretKey());
+    role: mapNestRole(user.role),
+    nestRole: user.role,
+    agencyName: user.agencyName ?? null,
+    bio: user.bio ?? null,
+    avatarUrl: user.avatarUrl ?? null,
+    emailVerified: Boolean(user.emailVerified),
+  };
+}
 
+export async function setAccessToken(accessToken: string) {
   const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, token, {
+  cookieStore.set(ACCESS_COOKIE, accessToken, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 24 * 14,
+    maxAge: COOKIE_MAX_AGE_SECONDS,
   });
 }
 
 export async function destroySession() {
   const cookieStore = await cookies();
-  cookieStore.delete(COOKIE_NAME);
+  cookieStore.delete(ACCESS_COOKIE);
+}
+
+export async function getAccessToken(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return cookieStore.get(ACCESS_COOKIE)?.value ?? null;
+}
+
+export async function readAccessTokenRole(token: string | undefined): Promise<Role | null> {
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, jwtSecretKey());
+    if (typeof payload.role !== "string") return null;
+    return mapNestRole(payload.role);
+  } catch {
+    try {
+      const payload = decodeJwt(token);
+      if (typeof payload.role !== "string") return null;
+      return mapNestRole(payload.role);
+    } catch {
+      return null;
+    }
+  }
 }
 
 export async function getSession(): Promise<SessionUser | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
+  const token = await getAccessToken();
   if (!token) return null;
 
   try {
-    const { payload } = await jwtVerify(token, secretKey());
-    const data = payload as unknown as TokenPayload;
-    if (!data.sub || !data.email || !data.role) return null;
-
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, data.sub),
-    });
-    if (!user || !user.active) return null;
-
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role as Role,
-      agencyName: user.agencyName ?? null,
-      emailVerified: Boolean(user.emailVerifiedAt),
-    };
+    const user = await nestMe(token);
+    return toSessionUser(user);
   } catch {
     return null;
   }
@@ -112,10 +97,4 @@ export async function requireSession(roles?: Role[]) {
   if (!session) return null;
   if (roles && !roles.includes(session.role)) return null;
   return session;
-}
-
-export async function findUserByEmail(email: string) {
-  return db.query.users.findFirst({
-    where: eq(users.email, email.toLowerCase()),
-  });
 }

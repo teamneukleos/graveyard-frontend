@@ -1,7 +1,9 @@
-import { and, count, eq } from "drizzle-orm";
-import { db } from "@/db";
-import { submissions, votes } from "@/db/schema";
-import type { Category } from "@/lib/constants";
+import {
+  nestLeaderboardCreators,
+  nestLeaderboardWorks,
+  nestListSubmissions,
+} from "@/lib/nest/client";
+import { coverUrlOf, safeApi } from "@/lib/nest/mappers";
 
 export function weekStartIso(date = new Date()) {
   const d = new Date(date);
@@ -14,58 +16,52 @@ export function weekStartIso(date = new Date()) {
 
 export async function getVoteCountsForIds(ids: string[]) {
   const map = new Map<string, number>();
-  if (!ids.length) return map;
-
-  for (const id of ids) {
-    const [{ total }] = await db
-      .select({ total: count() })
-      .from(votes)
-      .where(eq(votes.submissionId, id));
-    map.set(id, Number(total));
-  }
+  // Nest list responses already include likeCount; callers usually pass mapped counts.
+  for (const id of ids) map.set(id, 0);
   return map;
 }
 
-export async function getUserVotesForSubmissions(userId: string, submissionIds: string[]) {
-  const set = new Set<string>();
-  if (!submissionIds.length) return set;
-
-  for (const id of submissionIds) {
-    const row = await db.query.votes.findFirst({
-      where: and(eq(votes.userId, userId), eq(votes.submissionId, id)),
-    });
-    if (row) set.add(id);
-  }
-  return set;
+export async function getUserVotesForSubmissions(_userId: string, _submissionIds: string[]) {
+  return new Set<string>();
 }
 
 export type CategoryLeader = {
   submissionId: string;
+  slug: string;
   title: string;
   category: string;
-  coverFilename: string | null;
+  coverUrl: string | null;
+  coverFilename?: string | null;
   submitter: string;
   submitterType: string;
   votes: number;
 };
 
-export async function getCategoryLeaders(category?: Category | string, limit = 10) {
-  const published = await db.query.submissions.findMany({
-    where: category
-      ? and(eq(submissions.published, true), eq(submissions.category, category))
-      : eq(submissions.published, true),
-    with: { user: true, assets: true, votes: true },
-  });
+export async function getCategoryLeaders(category?: string, limit = 10) {
+  const categorySlug = category
+    ? category
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+    : undefined;
 
-  return published
+  const page = await safeApi(
+    nestListSubmissions({ category: categorySlug, page: 1, limit: Math.min(limit * 3, 100) }),
+    { data: [], total: 0, page: 1, limit },
+  );
+
+  return page.data
     .map((s) => ({
       submissionId: s.id,
+      slug: s.slug,
       title: s.title,
-      category: s.category,
-      coverFilename: s.assets[0]?.filename ?? null,
-      submitter: s.user.agencyName || s.user.name,
-      submitterType: s.submitterType,
-      votes: s.votes.length,
+      category: s.category.name,
+      coverUrl: coverUrlOf(s),
+      coverFilename: null,
+      submitter: s.creator.agencyName || s.creator.name,
+      submitterType: s.submitterType.toLowerCase(),
+      votes: s.likeCount,
     }))
     .sort((a, b) => b.votes - a.votes || a.title.localeCompare(b.title))
     .slice(0, limit);
@@ -77,67 +73,84 @@ export type EntityLeader = {
   kind: "creator" | "agency";
   votes: number;
   entries: number;
+  avatarUrl?: string | null;
   avatarFilename?: string | null;
   href: string;
 };
 
 export async function getWeeklyLeaderboard(kind: "creator" | "agency", limit = 20) {
-  const since = weekStartIso();
-  const published = await db.query.submissions.findMany({
-    where: eq(submissions.published, true),
-    with: { user: true, votes: true },
-  });
-
-  const map = new Map<string, EntityLeader>();
-
-  for (const s of published) {
-    const weeklyVotes = s.votes.filter((v) => v.createdAt >= since).length;
-    if (kind === "agency") {
-      if (s.submitterType !== "agency" || !s.user.agencyName) continue;
-      const key = s.user.agencySlug || s.user.agencyName;
+  if (kind === "agency") {
+    // Nest has no agency leaderboard yet — derive lightly from works board.
+    const works = await safeApi(nestLeaderboardWorks(Math.min(limit * 3, 50)), {
+      window: { startsAt: "", endsAt: "" },
+      items: [],
+    });
+    const map = new Map<string, EntityLeader>();
+    for (const item of works.items) {
+      if (!item.agencyName) continue;
+      const key = item.agencyName;
       const current = map.get(key) || {
         key,
-        name: s.user.agencyName,
+        name: item.agencyName,
         kind: "agency" as const,
         votes: 0,
         entries: 0,
-        avatarFilename: s.user.avatarFilename,
-        href: `/agencies/${encodeURIComponent(s.user.agencySlug || s.user.agencyName)}`,
+        avatarUrl: null,
+        href: `/agencies/${encodeURIComponent(item.agencyName)}`,
       };
-      current.votes += weeklyVotes;
-      current.entries += 1;
-      if (!current.avatarFilename && s.user.avatarFilename) {
-        current.avatarFilename = s.user.avatarFilename;
-      }
-      map.set(key, current);
-    } else {
-      const key = s.user.id;
-      const current = map.get(key) || {
-        key,
-        name: s.user.name,
-        kind: "creator" as const,
-        votes: 0,
-        entries: 0,
-        avatarFilename: s.user.avatarFilename,
-        href: `/creators/${s.user.id}`,
-      };
-      current.votes += weeklyVotes;
+      current.votes += item.weeklyLikes;
       current.entries += 1;
       map.set(key, current);
     }
+    return Array.from(map.values())
+      .sort((a, b) => b.votes - a.votes || b.entries - a.entries)
+      .slice(0, limit);
   }
 
-  return Array.from(map.values())
-    .sort((a, b) => b.votes - a.votes || b.entries - a.entries)
-    .slice(0, limit);
+  const board = await safeApi(nestLeaderboardCreators(limit), {
+    window: { startsAt: "", endsAt: "" },
+    items: [],
+  });
+
+  return board.items.map((item) => ({
+    key: item.creatorId,
+    name: item.name,
+    kind: "creator" as const,
+    votes: item.weeklyLikes,
+    entries: item.likedSubmissions,
+    avatarUrl: item.avatarUrl,
+    avatarFilename: null,
+    href: `/creators/${item.creatorId}`,
+  }));
+}
+
+export async function getTrendingWorks(limit = 12): Promise<CategoryLeader[]> {
+  const board = await safeApi(nestLeaderboardWorks(limit), {
+    window: { startsAt: "", endsAt: "" },
+    items: [],
+  });
+  return board.items.map((item) => ({
+    submissionId: item.submissionId,
+    slug: item.slug,
+    title: item.title,
+    category: item.categorySlug,
+    coverUrl: item.coverUrl,
+    coverFilename: null,
+    submitter: item.agencyName || item.creatorName,
+    submitterType: item.agencyName ? "agency" : "individual",
+    votes: item.weeklyLikes || item.likeCount,
+  }));
 }
 
 export async function getTopByCategoryPreview(perCategory = 3) {
-  const { getActiveCategoryNames } = await import("@/lib/categories");
-  const names = await getActiveCategoryNames();
+  const { getActiveCategories } = await import("@/lib/categories");
+  const categories = await getActiveCategories();
   const result: { category: string; leaders: CategoryLeader[] }[] = [];
-  for (const cat of names) {
-    result.push({ category: cat, leaders: await getCategoryLeaders(cat, perCategory) });
+  for (const cat of categories) {
+    result.push({
+      category: cat.name,
+      leaders: await getCategoryLeaders(cat.slug, perCategory),
+    });
   }
   return result;
 }

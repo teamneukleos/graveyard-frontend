@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { BrandLogo } from "./BrandLogo";
+import { getActiveCategories } from "@/lib/categories";
 
 const explore = [
   { href: "/", label: "Explore" },
   { href: "/showcase", label: "Showcase" },
   { href: "/?status=winner", label: "LIVE" },
-  { href: "/events", label: "Events" },
   { href: "/leaderboards", label: "Leaderboards" },
 ];
 
@@ -22,15 +22,14 @@ const legal = [
   { href: "/cookies", label: "Cookie Policy" },
 ];
 
-const categories = ["Campaign", "Branding", "Digital", "Film", "Motion", "Copywriting"].map(
-  (label) => ({
-    href: `/?category=${encodeURIComponent(label)}`,
-    label,
-  }),
-);
-
-export function SiteFooter() {
+export async function SiteFooter() {
   const year = new Date().getFullYear();
+  const activeCategories = await getActiveCategories();
+  const categories = activeCategories.map((cat) => ({
+    href: `/categories/${encodeURIComponent(cat.slug)}`,
+    label: cat.name,
+    feedHref: `/?category=${encodeURIComponent(cat.slug)}`,
+  }));
 
   return (
     <footer className="mt-auto bg-ink text-white">
@@ -66,7 +65,24 @@ export function SiteFooter() {
         <div className="grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-4">
           <FooterColumn title="Explore" links={explore} />
           <FooterColumn title="Account" links={enter} />
-          <FooterColumn title="Categories" links={categories} />
+          <div>
+            <p className="text-[12px] font-bold text-white">Categories</p>
+            <ul className="mt-3 space-y-2">
+              {categories.map((cat) => (
+                <li key={cat.href}>
+                  <Link href={cat.href} className="text-[13px] text-white/55 hover:text-white">
+                    {cat.label}
+                  </Link>
+                  <span className="mx-1.5 text-white/25" aria-hidden>
+                    ·
+                  </span>
+                  <Link href={cat.feedHref} className="text-[12px] text-white/40 hover:text-white">
+                    Feed
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
           <FooterColumn title="Legal" links={legal} />
         </div>
 
@@ -122,7 +138,7 @@ function FooterColumn({
       <p className="text-[12px] font-bold text-white">{title}</p>
       <ul className="mt-3 space-y-2">
         {links.map((link) => (
-          <li key={`${title}-${link.label}`}>
+          <li key={`${title}-${link.href}-${link.label}`}>
             <Link href={link.href} className="text-[13px] text-white/55 hover:text-white">
               {link.label}
             </Link>

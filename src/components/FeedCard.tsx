@@ -2,29 +2,35 @@ import Link from "next/link";
 import { VoteButton } from "@/components/VoteButton";
 
 export type FeedItem = {
+  /** Public detail route key (Nest slug). */
   id: string;
+  /** Nest submission UUID for like/mutations. */
+  submissionId?: string;
   title: string;
   category: string;
   status: string;
   yearCreated: number;
-  coverFilename?: string | null;
+  coverUrl?: string | null;
   submitter: string;
   concept?: string;
   votes?: number;
   voted?: boolean;
 };
 
+const PLACEHOLDER = "/brand/logo-on-dark.png";
+
 export function FeedCard({ item, index = 0 }: { item: FeedItem; index?: number }) {
   const isWinner = item.status === "winner";
   const isShortlist = item.status === "shortlisted";
   const voteCount = item.votes ?? 0;
+  const likeId = item.submissionId || item.id;
 
   return (
     <Link href={`/showcase/${item.id}`} className="group block">
       <div className="card-media relative aspect-[4/5]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={`/api/uploads/${item.coverFilename || "placeholder"}?tone=${index}`}
+          src={item.coverUrl || `${PLACEHOLDER}?tone=${index}`}
           alt={`${item.title} by ${item.submitter}`}
           className="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-[1.03]"
         />
@@ -41,7 +47,7 @@ export function FeedCard({ item, index = 0 }: { item: FeedItem; index?: number }
 
         <div className="absolute bottom-3 right-3 z-10 opacity-100 transition duration-300 sm:translate-y-1 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
           <VoteButton
-            submissionId={item.id}
+            submissionId={likeId}
             initialVoted={Boolean(item.voted)}
             initialCount={voteCount}
             compact
@@ -58,7 +64,7 @@ export function FeedCard({ item, index = 0 }: { item: FeedItem; index?: number }
           <span className="text-line"> · </span>
           {item.category}
           <span className="text-line"> · </span>
-          <span className="tabular-nums">{voteCount} votes</span>
+          <span className="tabular-nums">{voteCount} likes</span>
         </p>
       </div>
     </Link>

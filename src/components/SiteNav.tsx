@@ -23,14 +23,14 @@ export function SiteNav({ user }: { user: SessionUser | null }) {
           <Link href="/showcase" className="hover:opacity-50">
             Showcase
           </Link>
-          <Link href="/events" className="hover:opacity-50">
-            Events
-          </Link>
           <Link href="/categories" className="hover:opacity-50">
             Categories
           </Link>
           <Link href="/leaderboards" className="hover:opacity-50">
             Leaderboards
+          </Link>
+          <Link href="/events" className="hover:opacity-50">
+            Events
           </Link>
         </nav>
 

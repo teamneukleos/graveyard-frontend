@@ -1,10 +1,16 @@
-import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/db";
-import { submissions } from "@/db/schema";
-import { requireSession } from "@/lib/auth";
-import { findCategoryByName } from "@/lib/categories";
+import { getAccessToken, requireSession } from "@/lib/auth";
+import {
+  NestApiError,
+  nestCategories,
+  nestDeleteSubmission,
+  nestMySubmission,
+  nestPublishSubmission,
+  nestUpdateSubmission,
+} from "@/lib/nest/client";
+import { coverUrlOf, mapNestStatus } from "@/lib/nest/mappers";
+import type { NestSubmission } from "@/lib/nest/types";
 import { SUBMITTER_TYPES } from "@/lib/constants";
 
 type Params = { params: Promise<{ id: string }> };
@@ -16,9 +22,51 @@ const updateSchema = z.object({
   teamMembers: z.string().optional(),
   yearCreated: z.number().int().min(1950).max(2100).optional(),
   concept: z.string().optional(),
-  whyNeverLive: z.string().optional(),
+  whyNeverLived: z.string().optional(),
   status: z.enum(["draft", "submitted"]).optional(),
 });
+
+function serializeSubmission(s: NestSubmission) {
+  return {
+    id: s.id,
+    slug: s.slug,
+    title: s.title,
+    category: s.category.name,
+    categoryId: s.category.id,
+    submitterType: s.submitterType.toLowerCase(),
+    teamMembers: s.teamMembers.map((m) => m.name).join(", "),
+    yearCreated: s.yearCreated,
+    concept: s.concept,
+    whyNeverLived: s.whyNeverLived,
+    status: mapNestStatus(s.status),
+    published: Boolean(s.publishedAt),
+    showcaseYear: s.publishedAt ? new Date(s.publishedAt).getFullYear() : null,
+    likeCount: s.likeCount,
+    coverUrl: coverUrlOf(s),
+    assets: s.assets.map((a) => ({
+      id: a.id,
+      originalName: a.fileName || "asset",
+      filename: a.fileName || a.url,
+      url: a.url,
+      mimeType: a.mimeType || "application/octet-stream",
+    })),
+    user: {
+      id: s.creator.id,
+      name: s.creator.name,
+      agencyName: s.creator.agencyName,
+      avatarUrl: s.creator.avatarUrl,
+    },
+    reviews: [],
+  };
+}
+
+function parseTeamMembers(raw: string) {
+  return raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((name, sortOrder) => ({ name, sortOrder }));
+}
 
 export async function GET(_request: Request, { params }: Params) {
   const session = await requireSession();
@@ -26,23 +74,22 @@ export async function GET(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
-  const submission = await db.query.submissions.findFirst({
-    where: eq(submissions.id, id),
-    with: { user: true, assets: true, reviews: { with: { judge: true } } },
-  });
+  const token = await getAccessToken();
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  if (!submission) {
+  const { id } = await params;
+
+  try {
+    const submission = await nestMySubmission(id, token);
+    return NextResponse.json({ submission: serializeSubmission(submission) });
+  } catch (error) {
+    if (error instanceof NestApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-
-  const isOwner = submission.userId === session.id;
-  const isStaff = session.role === "admin" || session.role === "judge";
-  if (!isOwner && !isStaff) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  return NextResponse.json({ submission });
 }
 
 export async function PATCH(request: Request, { params }: Params) {
@@ -51,78 +98,65 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const token = await getAccessToken();
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await params;
-  const existing = await db.query.submissions.findFirst({
-    where: eq(submissions.id, id),
-  });
-
-  if (!existing) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  if (existing.userId !== session.id && session.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  if (!["draft", "submitted"].includes(existing.status) && session.role !== "admin") {
-    return NextResponse.json(
-      { error: "This submission can no longer be edited." },
-      { status: 400 },
-    );
-  }
 
   try {
     const body = await request.json();
     const data = updateSchema.parse(body);
-    const now = new Date().toISOString();
 
-    const nextStatus = data.status ?? existing.status;
-    const concept = data.concept ?? existing.concept;
-    const whyNeverLive = data.whyNeverLive ?? existing.whyNeverLive;
-    const nextCategory = data.category ?? existing.category;
-
-    if (data.category && data.category !== existing.category) {
-      const cat = await findCategoryByName(data.category);
-      if (!cat?.active) {
+    const patch: Record<string, unknown> = {};
+    if (data.title !== undefined) patch.title = data.title.trim();
+    if (data.yearCreated !== undefined) patch.yearCreated = data.yearCreated;
+    if (data.concept !== undefined) patch.concept = data.concept.trim();
+    if (data.whyNeverLived !== undefined) patch.whyNeverLived = data.whyNeverLived.trim();
+    if (data.submitterType !== undefined) {
+      patch.submitterType = data.submitterType === "agency" ? "AGENCY" : "INDIVIDUAL";
+    }
+    if (data.teamMembers !== undefined) {
+      patch.teamMembers = parseTeamMembers(data.teamMembers);
+    }
+    if (data.category !== undefined) {
+      const categories = await nestCategories();
+      const category = categories.find(
+        (c) => c.name === data.category || c.slug === data.category,
+      );
+      if (!category) {
         return NextResponse.json({ error: "Invalid or inactive category." }, { status: 400 });
+      }
+      patch.categoryId = category.id;
+    }
+
+    if (data.status === "submitted") {
+      const concept = (patch.concept as string | undefined) ?? "";
+      const why = (patch.whyNeverLived as string | undefined) ?? "";
+      if (data.concept !== undefined || data.whyNeverLived !== undefined) {
+        if (!concept.trim() || !why.trim()) {
+          return NextResponse.json(
+            { error: "Concept and why-it-never-went-live are required to submit." },
+            { status: 400 },
+          );
+        }
       }
     }
 
-    if (nextStatus === "submitted" && (!concept.trim() || !whyNeverLive.trim())) {
-      return NextResponse.json(
-        { error: "Concept and why-it-never-went-live are required to submit." },
-        { status: 400 },
-      );
+    let updated = await nestUpdateSubmission(id, patch, token);
+
+    if (data.status === "submitted") {
+      updated = await nestPublishSubmission(id, token);
     }
 
-    await db
-      .update(submissions)
-      .set({
-        title: data.title?.trim() ?? existing.title,
-        category: nextCategory,
-        submitterType: data.submitterType ?? existing.submitterType,
-        teamMembers: data.teamMembers?.trim() ?? existing.teamMembers,
-        yearCreated: data.yearCreated ?? existing.yearCreated,
-        concept: concept.trim(),
-        whyNeverLive: whyNeverLive.trim(),
-        status: nextStatus,
-        updatedAt: now,
-        submittedAt:
-          nextStatus === "submitted" && !existing.submittedAt
-            ? now
-            : existing.submittedAt,
-      })
-      .where(and(eq(submissions.id, id)));
-
-    const updated = await db.query.submissions.findFirst({
-      where: eq(submissions.id, id),
-      with: { assets: true, reviews: true },
-    });
-
-    return NextResponse.json({ submission: updated });
+    return NextResponse.json({ submission: serializeSubmission(updated) });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid submission data." }, { status: 400 });
+    }
+    if (error instanceof NestApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json({ error: "Could not update submission." }, { status: 500 });
   }
@@ -134,26 +168,20 @@ export async function DELETE(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const token = await getAccessToken();
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await params;
-  const existing = await db.query.submissions.findFirst({
-    where: eq(submissions.id, id),
-  });
 
-  if (!existing) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  try {
+    await nestDeleteSubmission(id, token);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (error instanceof NestApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    return NextResponse.json({ error: "Could not delete submission." }, { status: 500 });
   }
-
-  if (existing.userId !== session.id && session.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  if (existing.status !== "draft" && session.role !== "admin") {
-    return NextResponse.json(
-      { error: "Only drafts can be deleted." },
-      { status: 400 },
-    );
-  }
-
-  await db.delete(submissions).where(eq(submissions.id, id));
-  return NextResponse.json({ ok: true });
 }

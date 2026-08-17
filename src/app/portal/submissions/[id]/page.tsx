@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
 import { StatusPill } from "@/components/StatusPill";
 import { SubmissionEditor } from "@/components/SubmissionEditor";
 import { YardCard, YardContainer, YardHeader, YardPage } from "@/components/yard/YardPage";
-import { db } from "@/db";
-import { submissions } from "@/db/schema";
-import { requireSession } from "@/lib/auth";
+import { getAccessToken, requireSession } from "@/lib/auth";
 import { getActiveCategoryNames } from "@/lib/categories";
+import { NestApiError, nestMySubmission } from "@/lib/nest/client";
+import { isDraftEditable, mapNestStatus } from "@/lib/nest/mappers";
 
 type Params = {
   params: Promise<{ id: string }>;
@@ -20,19 +19,23 @@ export default async function SubmissionDetailPage({ params, searchParams }: Par
 
   const { id } = await params;
   const { uploadError } = await searchParams;
-  const submission = await db.query.submissions.findFirst({
-    where: eq(submissions.id, id),
-    with: { assets: true, reviews: { with: { judge: true } } },
-  });
+  const token = await getAccessToken();
+  if (!token) redirect("/login");
 
-  if (!submission) notFound();
-  if (submission.userId !== session.id && session.role !== "admin") redirect("/portal");
+  let submission;
+  try {
+    submission = await nestMySubmission(id, token);
+  } catch (error) {
+    if (error instanceof NestApiError && error.status === 404) notFound();
+    notFound();
+  }
 
-  const editable = submission.status === "draft" || submission.status === "submitted";
+  const status = mapNestStatus(submission.status);
+  const editable = isDraftEditable(submission.status);
   const activeCategories = await getActiveCategoryNames();
-  const categories = activeCategories.includes(submission.category)
+  const categories = activeCategories.includes(submission.category.name)
     ? activeCategories
-    : [submission.category, ...activeCategories];
+    : [submission.category.name, ...activeCategories];
 
   return (
     <YardPage>
@@ -40,10 +43,10 @@ export default async function SubmissionDetailPage({ params, searchParams }: Par
         narrow
         eyebrow="Submission"
         title={submission.title}
-        description={`${submission.category} · Created ${submission.yearCreated}`}
+        description={`${submission.category.name} · Created ${submission.yearCreated}`}
         actions={
           <>
-            <StatusPill status={submission.status} />
+            <StatusPill status={status} />
             <Link href="/portal" className="btn btn-ghost">
               Portal
             </Link>
@@ -60,17 +63,18 @@ export default async function SubmissionDetailPage({ params, searchParams }: Par
               submission={{
                 id: submission.id,
                 title: submission.title,
-                category: submission.category,
-                submitterType: submission.submitterType,
-                teamMembers: submission.teamMembers,
+                category: submission.category.name,
+                submitterType: submission.submitterType.toLowerCase(),
+                teamMembers: submission.teamMembers.map((m) => m.name).join(", "),
                 yearCreated: submission.yearCreated,
                 concept: submission.concept,
-                whyNeverLive: submission.whyNeverLive,
-                status: submission.status,
+                whyNeverLived: submission.whyNeverLived,
+                status,
                 assets: submission.assets.map((a) => ({
                   id: a.id,
-                  originalName: a.originalName,
-                  filename: a.filename,
+                  originalName: a.fileName || "asset",
+                  filename: a.fileName || a.url,
+                  url: a.url,
                 })),
               }}
             />
@@ -83,7 +87,7 @@ export default async function SubmissionDetailPage({ params, searchParams }: Par
             </YardCard>
             <YardCard className="p-6">
               <h2 className="plot-label">Why it never went live</h2>
-              <p className="mt-3 leading-relaxed text-ink">{submission.whyNeverLive}</p>
+              <p className="mt-3 leading-relaxed text-ink">{submission.whyNeverLived}</p>
             </YardCard>
             <YardCard className="p-6">
               <h2 className="plot-label">Assets</h2>
@@ -92,32 +96,16 @@ export default async function SubmissionDetailPage({ params, searchParams }: Par
                   <li key={asset.id}>
                     <a
                       className="font-semibold text-accent underline underline-offset-4"
-                      href={`/api/uploads/${asset.filename}`}
+                      href={asset.url}
                       target="_blank"
                       rel="noreferrer"
                     >
-                      {asset.originalName}
+                      {asset.fileName || "asset"}
                     </a>
                   </li>
                 ))}
               </ul>
             </YardCard>
-            {submission.reviews.length > 0 ? (
-              <YardCard className="p-6">
-                <h2 className="plot-label">Judge feedback</h2>
-                <div className="mt-4 space-y-3">
-                  {submission.reviews.map((review) => (
-                    <div key={review.id} className="rounded-2xl bg-soft p-4">
-                      <p className="text-sm font-semibold text-ink">
-                        Score {review.score}/10
-                        {review.shortlisted ? " · Shortlisted" : ""}
-                      </p>
-                      <p className="mt-2 text-ink">{review.comment || "No comment."}</p>
-                    </div>
-                  ))}
-                </div>
-              </YardCard>
-            ) : null}
           </div>
         )}
       </YardContainer>

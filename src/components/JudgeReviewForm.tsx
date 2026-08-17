@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 
 export function JudgeReviewForm({
   submissionId,
+  cycleId,
   initial,
 }: {
   submissionId: string;
+  cycleId?: string;
   initial: { score: number; comment: string; shortlisted: boolean };
 }) {
   const router = useRouter();
@@ -27,8 +29,10 @@ export function JudgeReviewForm({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         submissionId,
+        cycleId,
         score: Number(form.get("score")),
         comment: form.get("comment"),
+        // Shortlist is an admin/award-cycle action; ignored by the Nest BFF.
         shortlisted: form.get("shortlisted") === "on",
       }),
     });
@@ -74,15 +78,9 @@ export function JudgeReviewForm({
           defaultValue={initial.comment}
         />
       </div>
-      <label className="flex items-center gap-3 text-sm text-bone">
-        <input
-          type="checkbox"
-          name="shortlisted"
-          defaultChecked={initial.shortlisted}
-          className="size-4 accent-[var(--moss)]"
-        />
-        Shortlist as finalist
-      </label>
+      <p className="text-sm text-mute">
+        Shortlist / winners are set by admins on the award cycle after judging.
+      </p>
       {error ? <p className="text-sm text-ember">{error}</p> : null}
       {saved ? <p className="text-sm text-moss">Review saved.</p> : null}
       <button className="btn btn-primary" type="submit" disabled={loading}>

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { desc, eq } from "drizzle-orm";
 import { AdminSubmissionTable } from "@/components/AdminSubmissionTable";
 import {
   YardContainer,
@@ -8,65 +7,74 @@ import {
   YardPage,
   YardStat,
 } from "@/components/yard/YardPage";
-import { db } from "@/db";
-import { submissions, users } from "@/db/schema";
-import { requireSession } from "@/lib/auth";
+import { getAccessToken, requireSession } from "@/lib/auth";
+import { nestAdminSubmissions, nestAwardCycles } from "@/lib/nest/client";
+import { mapNestStatus, safeApi } from "@/lib/nest/mappers";
 
 export default async function AdminPage() {
   const session = await requireSession(["admin"]);
   if (!session) redirect("/login");
 
-  const rows = await db.query.submissions.findMany({
-    orderBy: [desc(submissions.updatedAt)],
-    with: { user: true, reviews: true },
-  });
+  const token = await getAccessToken();
+  const [submissions, cycles] = await Promise.all([
+    token
+      ? safeApi(nestAdminSubmissions(100, token), [])
+      : Promise.resolve([]),
+    safeApi(nestAwardCycles(), []),
+  ]);
 
-  const judges = await db.query.users.findMany({
-    where: eq(users.role, "judge"),
-  });
-
-  const published = rows.filter((r) => r.published).length;
-  const submitted = rows.filter((r) => r.status !== "draft").length;
+  const rows = submissions.map((s) => ({
+    id: s.id,
+    title: s.title,
+    category: s.category.name,
+    status: mapNestStatus(s.status),
+    published:
+      Boolean(s.publishedAt) &&
+      s.status !== "DRAFT" &&
+      s.status !== "REJECTED" &&
+      s.status !== "ARCHIVED",
+    showcaseYear: s.publishedAt ? new Date(s.publishedAt).getFullYear() : null,
+    submitter: s.creator.agencyName || s.creator.name,
+    avgScore: null as number | null,
+  }));
 
   return (
     <YardPage>
       <YardHeader
         eyebrow="Admin portal"
         title="Operations"
-        description="Manage submissions, categories, judges, events, and publish the showcase."
+        description="Manage submissions against the Nest API."
         actions={
-          <Link href="/showcase" className="btn btn-ghost">
-            View showcase
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/admin/events" className="btn btn-ghost">
+              Events
+            </Link>
+            <Link href="/admin/cycles" className="btn btn-ghost">
+              Award cycles
+            </Link>
+          </div>
         }
       />
 
       <YardContainer>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <YardStat label="Submissions" value={rows.length} />
-          <YardStat label="In review+" value={submitted} />
-          <YardStat label="Published" value={published} accent />
-          <YardStat label="Judges" value={judges.length} />
+          <YardStat
+            label="Published"
+            value={rows.filter((r) => r.published).length}
+          />
+          <YardStat label="Award cycles" value={cycles.length} />
+          <YardStat
+            label="Judging"
+            value={cycles.filter((c) => c.status === "JUDGING").length}
+            accent
+          />
         </div>
 
         <section className="mt-12">
           <h2 className="font-display text-3xl tracking-tight text-ink">All submissions</h2>
           <div className="mt-4 overflow-hidden rounded-[24px] border border-line bg-white/90 p-4 md:p-6">
-            <AdminSubmissionTable
-              submissions={rows.map((r) => ({
-                id: r.id,
-                title: r.title,
-                category: r.category,
-                status: r.status,
-                published: r.published,
-                showcaseYear: r.showcaseYear,
-                submitter: r.user.agencyName || r.user.name,
-                avgScore:
-                  r.reviews.length > 0
-                    ? r.reviews.reduce((sum, rev) => sum + rev.score, 0) / r.reviews.length
-                    : null,
-              }))}
-            />
+            <AdminSubmissionTable submissions={rows} />
           </div>
         </section>
       </YardContainer>

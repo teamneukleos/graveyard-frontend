@@ -4,10 +4,12 @@ import { useState } from "react";
 
 export type GalleryAsset = {
   id: string;
-  filename: string;
+  url: string;
   originalName: string;
   mimeType: string;
 };
+
+const PLACEHOLDER = "/brand/logo-on-dark.png";
 
 export function ShowcaseGallery({
   assets,
@@ -16,7 +18,9 @@ export function ShowcaseGallery({
   assets: GalleryAsset[];
   title: string;
 }) {
-  const images = assets.filter((a) => a.mimeType.startsWith("image/") || a.mimeType === "image/svg+xml");
+  const images = assets.filter(
+    (a) => a.mimeType.startsWith("image/") || a.mimeType === "image/svg+xml",
+  );
   const other = assets.filter((a) => !images.includes(a));
   const [active, setActive] = useState(0);
   const current = images[active] || images[0];
@@ -25,7 +29,7 @@ export function ShowcaseGallery({
     return (
       <div className="card-media aspect-[16/10] rounded-[28px] bg-canvas">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/api/uploads/placeholder" alt={`${title} placeholder`} className="h-full w-full object-cover" />
+        <img src={PLACEHOLDER} alt={`${title} placeholder`} className="h-full w-full object-cover" />
       </div>
     );
   }
@@ -37,7 +41,7 @@ export function ShowcaseGallery({
           // eslint-disable-next-line @next/next/no-img-element
           <img
             key={current.id}
-            src={`/api/uploads/${current.filename}`}
+            src={current.url}
             alt={`${title}, image ${active + 1}`}
             className="h-full w-full object-cover"
           />
@@ -62,11 +66,7 @@ export function ShowcaseGallery({
               aria-pressed={i === active}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`/api/uploads/${asset.filename}`}
-                alt=""
-                className="h-full w-full object-cover"
-              />
+              <img src={asset.url} alt="" className="h-full w-full object-cover" />
             </button>
           ))}
         </div>
@@ -77,7 +77,7 @@ export function ShowcaseGallery({
           {other.map((asset) => (
             <li key={asset.id}>
               <a
-                href={`/api/uploads/${asset.filename}`}
+                href={asset.url}
                 className="text-[14px] font-semibold text-ink underline underline-offset-4 hover:text-accent"
                 target="_blank"
                 rel="noreferrer"

@@ -30,7 +30,7 @@ export function SubmitForm({ categories }: { categories: string[] }) {
         teamMembers: data.get("teamMembers"),
         yearCreated: Number(data.get("yearCreated")),
         concept: data.get("concept"),
-        whyNeverLive: data.get("whyNeverLive"),
+        whyNeverLived: data.get("whyNeverLived"),
         status,
       }),
     });
@@ -131,10 +131,10 @@ export function SubmitForm({ categories }: { categories: string[] }) {
       </div>
 
       <div>
-        <label className="label" htmlFor="whyNeverLive">
+        <label className="label" htmlFor="whyNeverLived">
           Why the work never went live
         </label>
-        <textarea className="field min-h-28" id="whyNeverLive" name="whyNeverLive" />
+        <textarea className="field min-h-28" id="whyNeverLived" name="whyNeverLived" />
       </div>
 
       <div>

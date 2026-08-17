@@ -6,7 +6,7 @@ export type AwardEntry = {
   category: string;
   status: "winner" | "shortlisted";
   year: number;
-  coverFilename?: string | null;
+  coverUrl?: string | null;
 };
 
 export function toAwardEntries(
@@ -17,7 +17,8 @@ export function toAwardEntries(
     status: string;
     showcaseYear: number | null;
     yearCreated: number;
-    assets?: { filename: string }[];
+    coverUrl?: string | null;
+    assets?: { filename?: string; url?: string }[];
   }[],
 ): AwardEntry[] {
   return pieces
@@ -28,7 +29,7 @@ export function toAwardEntries(
       category: p.category,
       status: p.status as "winner" | "shortlisted",
       year: p.showcaseYear || p.yearCreated,
-      coverFilename: p.assets?.[0]?.filename ?? null,
+      coverUrl: p.coverUrl ?? p.assets?.[0]?.url ?? null,
     }))
     .sort((a, b) => b.year - a.year || a.title.localeCompare(b.title));
 }
@@ -91,7 +92,7 @@ export function AwardsHistory({
                   <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-canvas md:h-20 md:w-20">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={`/api/uploads/${award.coverFilename || "placeholder"}`}
+                      src={award.coverUrl || "/brand/logo-on-dark.png"}
                       alt=""
                       className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
                     />

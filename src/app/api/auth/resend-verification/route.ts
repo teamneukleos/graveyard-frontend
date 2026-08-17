@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth";
 import { sendVerificationForUser } from "@/lib/auth-tokens";
-import { db } from "@/db";
-import { eq } from "drizzle-orm";
-import { users } from "@/db/schema";
 
 export async function POST() {
   const session = await requireSession();
@@ -11,14 +8,13 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await db.query.users.findFirst({ where: eq(users.id, session.id) });
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
-  if (user.emailVerifiedAt) {
+  if (session.emailVerified) {
     return NextResponse.json({ ok: true, alreadyVerified: true });
   }
 
-  await sendVerificationForUser(user.id, user.email);
+  const result = await sendVerificationForUser(session.id, session.email);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
+  }
   return NextResponse.json({ ok: true });
 }

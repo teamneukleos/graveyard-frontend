@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
 import { AuthLink, AuthShell } from "@/components/AuthShell";
+import { PasswordField } from "@/components/PasswordField";
 
 function ResetForm() {
   const router = useRouter();
@@ -16,12 +17,21 @@ function ResetForm() {
     setLoading(true);
     setError("");
     const form = new FormData(e.currentTarget);
+    const password = String(form.get("password") || "");
+    const confirmPassword = String(form.get("confirmPassword") || "");
+
+    if (password !== confirmPassword) {
+      setLoading(false);
+      setError("Passwords do not match.");
+      return;
+    }
+
     const res = await fetch("/api/auth/reset-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         token,
-        password: form.get("password"),
+        password,
       }),
     });
     const data = await res.json();
@@ -54,12 +64,14 @@ function ResetForm() {
       }
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        <div>
-          <label className="label" htmlFor="password">
-            New password
-          </label>
-          <input className="field" id="password" name="password" type="password" minLength={8} required />
-        </div>
+        <PasswordField id="password" name="password" label="New password" minLength={8} required />
+        <PasswordField
+          id="confirmPassword"
+          name="confirmPassword"
+          label="Confirm new password"
+          minLength={8}
+          required
+        />
         {error ? <p className="text-sm text-[#c45a16]">{error}</p> : null}
         <button className="btn btn-primary w-full" disabled={loading} type="submit">
           {loading ? "Saving…" : "Update password"}

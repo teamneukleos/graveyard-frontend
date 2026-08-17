@@ -1,74 +1,59 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { and, desc, eq } from "drizzle-orm";
 import { FeedGrid, type FeedItem } from "@/components/FeedCard";
 import { JsonLd } from "@/components/JsonLd";
 import { YardContainer, YardEmpty, YardHeader, YardPage } from "@/components/yard/YardPage";
-import { db } from "@/db";
-import { submissions } from "@/db/schema";
-import { findCategoryByName } from "@/lib/categories";
-import { getCategoryLeaders, getVoteCountsForIds } from "@/lib/leaderboards";
+import { findCategoryByName, findCategoryBySlug } from "@/lib/categories";
+import { getCategoryLeaders } from "@/lib/leaderboards";
+import { nestListSubmissions } from "@/lib/nest/client";
+import { safeApi, submissionToFeedItem } from "@/lib/nest/mappers";
 import { breadcrumbJsonLd, buildMetadata, itemListJsonLd, metaDescription } from "@/lib/seo";
-import { getCurrentVoterVotes } from "@/lib/voter";
 
 type Params = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
   const category = decodeURIComponent(slug);
-  const known = await findCategoryByName(category);
-  if (!known?.active) {
+  const known =
+    (await findCategoryBySlug(category)) || (await findCategoryByName(category));
+  if (!known) {
     return buildMetadata({
       title: "Category not found",
       description: "This Graveyard category is unavailable.",
-      path: `/categories/${encodeURIComponent(category)}`,
+      path: `/categories/${encodeURIComponent(slug)}`,
       noIndex: true,
     });
   }
 
   return buildMetadata({
-    title: `${category} awards`,
+    title: `${known.name} awards`,
     description: metaDescription(
-      `Vote for the strongest unseen ${category} work on Graveyard. Rejected and shelved entries ranked by public votes.`,
+      `Vote for the strongest unseen ${known.name} work on Graveyard. Rejected and shelved entries ranked by public votes.`,
     ),
-    path: `/categories/${encodeURIComponent(category)}`,
-    keywords: [category, "Graveyard", "creative awards", "should have gone live"],
+    path: `/categories/${encodeURIComponent(known.slug)}`,
+    keywords: [known.name, "Graveyard", "creative awards", "should have gone live"],
   });
 }
 
 export default async function CategoryPage({ params }: Params) {
   const { slug } = await params;
-  const category = decodeURIComponent(slug);
-  const known = await findCategoryByName(category);
-  if (!known?.active) notFound();
+  const decoded = decodeURIComponent(slug);
+  const known =
+    (await findCategoryBySlug(decoded)) || (await findCategoryByName(decoded));
+  if (!known) notFound();
 
-  const leaders = await getCategoryLeaders(category, 10);
+  const category = known.name;
+  const categoryPath = `/categories/${encodeURIComponent(known.slug)}`;
+  const leaders = await getCategoryLeaders(known.slug, 10);
 
-  const rows = await db.query.submissions.findMany({
-    where: and(eq(submissions.published, true), eq(submissions.category, category)),
-    orderBy: [desc(submissions.updatedAt)],
-    with: { user: true, assets: true },
-  });
+  const listed = await safeApi(
+    nestListSubmissions({ category: known.slug, page: 1, limit: 100 }),
+    { data: [], total: 0, page: 1, limit: 100 },
+  );
 
-  const ids = rows.map((r) => r.id);
-  const [voteCounts, voterVotes] = await Promise.all([
-    getVoteCountsForIds(ids),
-    getCurrentVoterVotes(ids),
-  ]);
-
-  const items: FeedItem[] = rows
-    .map((piece) => ({
-      id: piece.id,
-      title: piece.title,
-      category: piece.category,
-      status: piece.status,
-      yearCreated: piece.yearCreated,
-      coverFilename: piece.assets[0]?.filename,
-      submitter: piece.user.agencyName || piece.user.name,
-      votes: voteCounts.get(piece.id) ?? 0,
-      voted: voterVotes.has(piece.id),
-    }))
+  const items: FeedItem[] = listed.data
+    .map((piece) => submissionToFeedItem(piece))
     .sort((a, b) => (b.votes ?? 0) - (a.votes ?? 0));
 
   return (
@@ -78,7 +63,7 @@ export default async function CategoryPage({ params }: Params) {
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
             { name: "Categories", path: "/categories" },
-            { name: category, path: `/categories/${encodeURIComponent(category)}` },
+            { name: category, path: categoryPath },
           ]),
           itemListJsonLd(
             `${category} on Graveyard`,
@@ -117,13 +102,13 @@ export default async function CategoryPage({ params }: Params) {
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <Link
-                  href={`/showcase/${leader.submissionId}`}
+                  href={`/showcase/${leader.slug}`}
                   className="flex min-w-0 items-center gap-3 hover:opacity-70 sm:gap-4"
                 >
                   <div className="hidden h-12 w-12 shrink-0 overflow-hidden rounded-2xl sm:block sm:h-14 sm:w-14">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={`/api/uploads/${leader.coverFilename || "placeholder"}?tone=${i}`}
+                      src={leader.coverUrl || `/brand/logo-on-dark.png?tone=${i}`}
                       alt={`${leader.title} by ${leader.submitter}`}
                       className="h-full w-full object-cover"
                     />

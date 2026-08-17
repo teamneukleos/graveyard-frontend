@@ -1,16 +1,16 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { and, count, desc, eq } from "drizzle-orm";
 import { FeedGrid, type FeedItem } from "@/components/FeedCard";
 import { JsonLd } from "@/components/JsonLd";
 import { Pagination } from "@/components/Pagination";
 import { YardContainer, YardEmpty, YardHeader, YardPage } from "@/components/yard/YardPage";
-import { db } from "@/db";
-import { submissions } from "@/db/schema";
-import { getActiveCategoryNames } from "@/lib/categories";
-import { getVoteCountsForIds } from "@/lib/leaderboards";
+import {
+  findCategoryByName,
+  findCategoryBySlug,
+  getActiveCategories,
+} from "@/lib/categories";
+import { listShowcaseItems, showcaseItemToFeedFields } from "@/lib/nest/queries";
 import { breadcrumbJsonLd, buildMetadata, metaDescription } from "@/lib/seo";
-import { getCurrentVoterVotes } from "@/lib/voter";
 
 const PAGE_SIZE = 24;
 
@@ -22,24 +22,29 @@ export async function generateMetadata({
   searchParams: SearchParams;
 }): Promise<Metadata> {
   const params = await searchParams;
-  const category = params.category;
+  const categoryParam = params.category;
   const year = params.year ? Number(params.year) : undefined;
+  const categoryRow = categoryParam
+    ? (await findCategoryBySlug(categoryParam)) || (await findCategoryByName(categoryParam))
+    : null;
+  const categoryLabel = categoryRow?.name || categoryParam;
 
-  if (category) {
+  if (categoryLabel) {
+    const pathCategory = categoryRow?.slug || categoryParam!;
     return buildMetadata({
-      title: `${category} showcase`,
+      title: `${categoryLabel} showcase`,
       description: metaDescription(
-        `Published ${category} graves on Graveyard. Shortlisted and LIVE rejected work you can vote on.`,
+        `Shortlisted and LIVE ${categoryLabel} awards on Graveyard. Vote for rejected work that earned recognition.`,
       ),
-      path: `/showcase?category=${encodeURIComponent(category)}${year ? `&year=${year}` : ""}`,
-      keywords: [category, "Graveyard showcase", "should have gone live"],
+      path: `/showcase?category=${encodeURIComponent(pathCategory)}${year ? `&year=${year}` : ""}`,
+      keywords: [categoryLabel, "Graveyard showcase", "should have gone live"],
     });
   }
   if (year) {
     return buildMetadata({
       title: `Showcase ${year}`,
       description: metaDescription(
-        `Graveyard showcase ${year}. Rejected and shelved creative work that earned LIVE or shortlist recognition.`,
+        `Graveyard showcase ${year}. Shortlisted and LIVE awards for rejected and shelved creative work.`,
       ),
       path: `/showcase?year=${year}`,
     });
@@ -48,7 +53,7 @@ export async function generateMetadata({
   return buildMetadata({
     title: "Showcase",
     description: metaDescription(
-      "Browse shortlisted and LIVE graves on Graveyard. Vote for rejected campaigns, film, motion, and branding that should have gone live.",
+      "Browse shortlisted and LIVE awards on Graveyard. Vote for rejected campaigns, film, motion, and branding that should have gone live.",
     ),
     path: "/showcase",
   });
@@ -61,59 +66,38 @@ export default async function ShowcasePage({
 }) {
   const params = await searchParams;
   const page = Math.max(1, Number(params.page) || 1);
-  const category = params.category;
+  const categoryParam = params.category;
   const year = params.year ? Number(params.year) : undefined;
-  const activeCategories = await getActiveCategoryNames();
+  const activeCategories = await getActiveCategories();
 
-  const conditions = [eq(submissions.published, true)];
-  if (category && activeCategories.includes(category)) {
-    conditions.push(eq(submissions.category, category));
-  }
-  if (year) {
-    conditions.push(eq(submissions.showcaseYear, year));
-  }
+  const categoryRow = categoryParam
+    ? (await findCategoryBySlug(categoryParam)) || (await findCategoryByName(categoryParam))
+    : null;
 
-  const where = and(...conditions);
+  const showcase = await listShowcaseItems({
+    category: categoryRow?.slug,
+    year: year || undefined,
+  });
 
-  const [{ total }] = await db.select({ total: count() }).from(submissions).where(where);
-
+  const total = showcase.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const offset = (currentPage - 1) * PAGE_SIZE;
 
-  const rows = await db.query.submissions.findMany({
-    where,
-    orderBy: [desc(submissions.updatedAt)],
-    limit: PAGE_SIZE,
-    offset,
-    with: { user: true, assets: true },
-  });
-
-  const yearsRows = await db.query.submissions.findMany({
-    where: eq(submissions.published, true),
-    columns: { showcaseYear: true },
-  });
   const years = Array.from(
-    new Set(yearsRows.map((r) => r.showcaseYear).filter(Boolean) as number[]),
+    new Set(
+      showcase
+        .map((r) => r.cycleYear)
+        .concat(year ? [year] : [])
+        .filter(Boolean),
+    ),
   ).sort((a, b) => b - a);
 
-  const ids = rows.map((r) => r.id);
-  const [voteCounts, voterVotes] = await Promise.all([
-    getVoteCountsForIds(ids),
-    getCurrentVoterVotes(ids),
-  ]);
+  const items: FeedItem[] = showcase
+    .slice(offset, offset + PAGE_SIZE)
+    .map(showcaseItemToFeedFields);
 
-  const items: FeedItem[] = rows.map((piece) => ({
-    id: piece.id,
-    title: piece.title,
-    category: piece.category,
-    status: piece.status,
-    yearCreated: piece.yearCreated,
-    coverFilename: piece.assets[0]?.filename,
-    submitter: piece.user.agencyName || piece.user.name,
-    votes: voteCounts.get(piece.id) ?? 0,
-    voted: voterVotes.has(piece.id),
-  }));
+  const categoryQuery = categoryRow?.slug || categoryParam;
 
   return (
     <YardPage>
@@ -124,28 +108,28 @@ export default async function ShowcasePage({
         ])}
       />
       <YardHeader
-        eyebrow="Published work"
+        eyebrow="Award results"
         title="Showcase"
-        description="Shortlisted and LIVE work from the yard. Vote with just a name and email."
+        description="Shortlisted and LIVE awards from Nest. Vote for work that should have gone LIVE."
         actions={
           <span className="rounded-full bg-accent px-3 py-1.5 text-[12px] font-bold text-white">
-            {total} live
+            {total} awards
           </span>
         }
       />
 
       <YardContainer>
         <div className="flex flex-wrap gap-2">
-          <Chip href="/showcase" active={!category}>
+          <Chip href="/showcase" active={!categoryParam}>
             All
           </Chip>
           {activeCategories.map((cat) => (
             <Chip
-              key={cat}
-              href={`/showcase?category=${encodeURIComponent(cat)}${year ? `&year=${year}` : ""}`}
-              active={category === cat}
+              key={cat.id}
+              href={`/showcase?category=${encodeURIComponent(cat.slug)}${year ? `&year=${year}` : ""}`}
+              active={categoryRow?.slug === cat.slug || categoryParam === cat.name}
             >
-              {cat}
+              {cat.name}
             </Chip>
           ))}
         </div>
@@ -155,7 +139,7 @@ export default async function ShowcasePage({
             {years.map((y) => (
               <Chip
                 key={y}
-                href={`/showcase?year=${y}${category ? `&category=${encodeURIComponent(category)}` : ""}`}
+                href={`/showcase?year=${y}${categoryQuery ? `&category=${encodeURIComponent(categoryQuery)}` : ""}`}
                 active={year === y}
               >
                 {y}
@@ -168,7 +152,7 @@ export default async function ShowcasePage({
           {items.length > 0 ? (
             <FeedGrid items={items} startIndex={offset} />
           ) : (
-            <YardEmpty>No published entries match these filters.</YardEmpty>
+            <YardEmpty>No shortlisted or LIVE awards match these filters.</YardEmpty>
           )}
         </div>
 
@@ -177,7 +161,7 @@ export default async function ShowcasePage({
           totalPages={totalPages}
           basePath="/showcase"
           query={{
-            category,
+            category: categoryQuery,
             year: year ? String(year) : undefined,
           }}
         />

@@ -1,16 +1,11 @@
 import { NextResponse } from "next/server";
-import { v4 as uuid } from "uuid";
 import { z } from "zod";
-import { createSession, findUserByEmail, hashPassword } from "@/lib/auth";
-import { sendVerificationForUser } from "@/lib/auth-tokens";
-import { db } from "@/db";
-import { users } from "@/db/schema";
-import { slugifyAgency } from "@/lib/events";
+import { NestApiError, nestRegister } from "@/lib/nest/client";
 
 const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
-  name: z.string().min(2),
+  name: z.string().min(1),
   agencyName: z.string().optional(),
 });
 
@@ -19,48 +14,26 @@ export async function POST(request: Request) {
     const body = await request.json();
     const data = registerSchema.parse(body);
 
-    const existing = await findUserByEmail(data.email);
-    if (existing) {
-      return NextResponse.json(
-        { error: "An account with this email already exists." },
-        { status: 409 },
-      );
-    }
+    const result = await nestRegister({
+      email: data.email,
+      password: data.password,
+      name: data.name,
+      agencyName: data.agencyName?.trim() || undefined,
+    });
 
-    const passwordHash = await hashPassword(data.password);
-    const agencyName = data.agencyName?.trim() || null;
-    const user = {
-      id: uuid(),
-      email: data.email.toLowerCase(),
-      passwordHash,
-      name: data.name.trim(),
-      role: "creator" as const,
-      agencyName,
-      agencySlug: agencyName ? slugifyAgency(agencyName) : null,
-      bio: "",
-      avatarFilename: null,
-      emailVerifiedAt: null,
-      googleId: null,
-      active: true,
-      createdAt: new Date().toISOString(),
-    };
-
-    await db.insert(users).values(user);
-    await createSession(user);
-    await sendVerificationForUser(user.id, user.email);
-
+    // Do not set a session — user must verify email, then log in.
     return NextResponse.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        agencyName: user.agencyName,
-      },
+      ok: true,
+      email: result.user.email,
+      message:
+        "We sent a verification link to your email. Open it to verify your account, then log in.",
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid registration data." }, { status: 400 });
+    }
+    if (error instanceof NestApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json({ error: "Registration failed." }, { status: 500 });
   }

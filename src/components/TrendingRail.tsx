@@ -5,9 +5,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export type TrendingItem = {
   submissionId: string;
+  slug?: string;
   title: string;
   category: string;
   votes: number;
+  coverUrl?: string | null;
   coverFilename?: string | null;
   submitter?: string;
 };
@@ -241,7 +243,7 @@ export function TrendingRail({
           {items.map((piece, i) => (
             <Link
               key={piece.submissionId}
-              href={`/showcase/${piece.submissionId}`}
+              href={`/showcase/${piece.slug || piece.submissionId}`}
               data-trend-card
               className="group shrink-0"
               style={{ flex: `0 0 ${CARD_WIDTH}px`, width: CARD_WIDTH }}
@@ -251,7 +253,7 @@ export function TrendingRail({
               <div className="card-media relative aspect-[4/5]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={`/api/uploads/${piece.coverFilename || "placeholder"}?tone=${i}`}
+                  src={piece.coverUrl || piece.coverFilename || `/brand/logo-on-dark.png?tone=${i}`}
                   alt={`${piece.title}${piece.submitter ? ` by ${piece.submitter}` : ""}`}
                   className="story-ken pointer-events-none"
                   style={{ animationDelay: `${(i % 5) * -2.4}s` }}

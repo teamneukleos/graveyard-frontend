@@ -112,11 +112,13 @@ export function EventsColorBand({ events }: { events: EventWithAvailability[] })
   );
 }
 
+type CategoryBandItem = { name: string; slug?: string; count?: number };
+
 /** Categories  -  Apple-style asymmetric feature grid */
 export function CategoriesColorBand({
   categories,
 }: {
-  categories: { name: string; count?: number }[];
+  categories: CategoryBandItem[];
 }) {
   const items = categories.slice(0, 6);
   if (!items.length) return null;
@@ -161,7 +163,7 @@ export function CategoriesColorBand({
   ];
 
   const [hero, a, b, ...rest] = items;
-  const side = [a, b].filter(Boolean) as { name: string }[];
+  const side = [a, b].filter(Boolean) as CategoryBandItem[];
   const row = rest.slice(0, 3);
 
   function PlotCard({
@@ -170,15 +172,16 @@ export function CategoriesColorBand({
     className,
     large,
   }: {
-    cat: { name: string };
+    cat: CategoryBandItem;
     toneIndex: number;
     className?: string;
     large?: boolean;
   }) {
     const tone = palettes[toneIndex % palettes.length];
+    const href = `/categories/${encodeURIComponent(cat.slug || cat.name)}`;
     return (
       <Link
-        href={`/categories/${encodeURIComponent(cat.name)}`}
+        href={href}
         className={`group relative flex flex-col justify-between overflow-hidden rounded-[28px] p-7 transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_48px_rgba(10,10,10,0.12)] ${className ?? ""}`}
         style={{ background: tone.gradient, color: tone.fg }}
       >
@@ -242,14 +245,24 @@ export function CategoriesColorBand({
             />
           ) : null}
           {side.map((cat, i) => (
-            <PlotCard key={cat.name} cat={cat} toneIndex={i + 1} className="min-h-[200px]" />
+            <PlotCard
+              key={cat.slug || cat.name}
+              cat={cat}
+              toneIndex={i + 1}
+              className="min-h-[200px]"
+            />
           ))}
         </div>
 
         {row.length > 0 ? (
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
             {row.map((cat, i) => (
-              <PlotCard key={cat.name} cat={cat} toneIndex={i + 3} className="min-h-[180px]" />
+              <PlotCard
+                key={cat.slug || cat.name}
+                cat={cat}
+                toneIndex={i + 3}
+                className="min-h-[180px]"
+              />
             ))}
           </div>
         ) : null}
@@ -300,10 +313,10 @@ export function AgenciesColorBand({ rows }: { rows: EntityLeader[] }) {
                 {String(i + 1).padStart(2, "0")}
               </span>
               <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-[14px] font-bold text-ink ring-1 ring-black/5 md:h-14 md:w-14">
-                {row.avatarFilename ? (
+                {row.avatarUrl || row.avatarFilename ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={`/api/uploads/${row.avatarFilename}`}
+                    src={row.avatarUrl || row.avatarFilename || ""}
                     alt={`${row.name} avatar`}
                     className="h-full w-full object-cover"
                   />

@@ -50,10 +50,10 @@ export function LeaderboardPreview({
               {String(i + 1).padStart(2, "0")}
             </span>
             <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-ink sm:h-10 sm:w-10">
-              {row.avatarFilename ? (
+              {row.avatarUrl || row.avatarFilename ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={`/api/uploads/${row.avatarFilename}`}
+                  src={row.avatarUrl || row.avatarFilename || ""}
                   alt=""
                   className="h-full w-full object-cover"
                 />
@@ -135,13 +135,13 @@ export function CategoryRail({
         {leaders.map((leader, i) => (
           <Link
             key={leader.submissionId}
-            href={`/showcase/${leader.submissionId}`}
+            href={`/showcase/${leader.slug || leader.submissionId}`}
             className="category-tile group"
           >
             <div className="card-media aspect-[4/5]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={`/api/uploads/${leader.coverFilename || "placeholder"}?tone=${i}`}
+                src={leader.coverUrl || leader.coverFilename || `/brand/logo-on-dark.png?tone=${i}`}
                 alt=""
               />
             </div>

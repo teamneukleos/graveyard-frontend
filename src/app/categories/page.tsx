@@ -1,12 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { and, count, eq } from "drizzle-orm";
 import { JsonLd } from "@/components/JsonLd";
 import { YardContainer, YardHeader, YardPage } from "@/components/yard/YardPage";
-import { db } from "@/db";
-import { submissions } from "@/db/schema";
-import { getActiveCategoryNames } from "@/lib/categories";
+import { getActiveCategories } from "@/lib/categories";
 import { getCategoryLeaders } from "@/lib/leaderboards";
+import { nestListSubmissions } from "@/lib/nest/client";
+import { safeApi } from "@/lib/nest/mappers";
 import { breadcrumbJsonLd, buildMetadata, itemListJsonLd, metaDescription } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
@@ -19,15 +18,25 @@ export const metadata: Metadata = buildMetadata({
 });
 
 export default async function CategoriesIndexPage() {
-  const names = await getActiveCategoryNames();
+  const categories = await getActiveCategories();
   const counts = await Promise.all(
-    names.map(async (category) => {
-      const [{ total }] = await db
-        .select({ total: count() })
-        .from(submissions)
-        .where(and(eq(submissions.category, category), eq(submissions.published, true)));
-      const leaders = await getCategoryLeaders(category, 1);
-      return { category, total: Number(total), cover: leaders[0]?.coverFilename };
+    categories.map(async (category) => {
+      const page = await safeApi(
+        nestListSubmissions({ category: category.slug, page: 1, limit: 1 }),
+        {
+          data: [],
+          total: 0,
+          page: 1,
+          limit: 1,
+        },
+      );
+      const leaders = await getCategoryLeaders(category.slug, 1);
+      return {
+        name: category.name,
+        slug: category.slug,
+        total: page.total,
+        coverUrl: leaders[0]?.coverUrl ?? null,
+      };
     }),
   );
 
@@ -42,8 +51,8 @@ export default async function CategoriesIndexPage() {
           itemListJsonLd(
             "Graveyard categories",
             counts.map((c, i) => ({
-              name: c.category,
-              path: `/categories/${encodeURIComponent(c.category)}`,
+              name: c.name,
+              path: `/categories/${encodeURIComponent(c.slug)}`,
               position: i + 1,
             })),
           ),
@@ -58,23 +67,23 @@ export default async function CategoriesIndexPage() {
 
       <YardContainer>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {counts.map(({ category, total, cover }, i) => (
+          {counts.map(({ name, slug, total, coverUrl }, i) => (
             <Link
-              key={category}
-              href={`/categories/${encodeURIComponent(category)}`}
+              key={slug}
+              href={`/categories/${encodeURIComponent(slug)}`}
               className="group overflow-hidden rounded-[28px] border border-line bg-white/90 shadow-[0_20px_60px_rgba(0,0,0,0.04)] transition hover:-translate-y-0.5"
             >
               <div className="card-media aspect-[16/10] rounded-none">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={`/api/uploads/${cover || "placeholder"}?tone=${i}`}
-                  alt={`${category} category on Graveyard`}
+                  src={coverUrl || `/brand/logo-on-dark.png?tone=${i}`}
+                  alt={`${name} category on Graveyard`}
                   className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                 />
               </div>
               <div className="flex items-center justify-between gap-3 p-5">
                 <div>
-                  <h2 className="font-display text-[22px] tracking-tight text-ink">{category}</h2>
+                  <h2 className="font-display text-[22px] tracking-tight text-ink">{name}</h2>
                   <p className="mt-0.5 text-[12px] text-mute">{total} entries</p>
                 </div>
                 <span className="rounded-full bg-accent px-3 py-1.5 text-[11px] font-bold text-white">

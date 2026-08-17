@@ -1,9 +1,21 @@
 import Link from "next/link";
 import { BrandLogo } from "./BrandLogo";
+import { googleAuthStartUrl } from "@/lib/nest/config";
 
-export function GoogleAuthButton({ label = "Continue with Google" }: { label?: string }) {
+export function GoogleAuthButton({
+  label = "Continue with Google",
+  nextPath,
+  href,
+}: {
+  label?: string;
+  /** Frontend path to return to after Google sign-in (e.g. /portal). */
+  nextPath?: string | null;
+  /** Override; defaults to Nest `/auth/google` on the API host. */
+  href?: string;
+}) {
+  const target = href ?? googleAuthStartUrl(nextPath);
   return (
-    <a href="/api/auth/google" className="btn btn-outline w-full">
+    <a href={target} className="btn btn-outline w-full">
       <GoogleIcon />
       {label}
     </a>
@@ -50,7 +62,7 @@ function GoogleIcon() {
 
 export function AuthLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link href={href} className="font-semibold text-ink underline underline-offset-4">
+    <Link href={href} className="font-semibold text-sm text-ink underline underline-offset-4">
       {children}
     </Link>
   );

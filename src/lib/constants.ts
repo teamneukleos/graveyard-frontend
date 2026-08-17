@@ -39,7 +39,8 @@ export function categoryColor(category: string) {
 
 export const SUBMISSION_STATUSES = [
   "draft",
-  "submitted",
+  "published",
+  "submitted", // legacy alias used by submit forms (= publish action)
   "under_review",
   "shortlisted",
   "winner",
@@ -58,9 +59,10 @@ export const CURRENT_YEAR = new Date().getFullYear();
 
 export const STATUS_LABELS: Record<SubmissionStatus, string> = {
   draft: "Draft",
-  submitted: "Submitted",
+  published: "Published",
+  submitted: "Published",
   under_review: "Under Review",
   shortlisted: "Shortlisted",
   winner: "Winner",
-  rejected: "Not Selected",
+  rejected: "Rejected",
 };

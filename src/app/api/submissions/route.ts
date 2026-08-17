@@ -1,11 +1,15 @@
-import { desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { v4 as uuid } from "uuid";
 import { z } from "zod";
-import { db } from "@/db";
-import { submissions } from "@/db/schema";
-import { requireSession } from "@/lib/auth";
-import { isActiveCategoryName } from "@/lib/categories";
+import { getAccessToken, requireSession } from "@/lib/auth";
+import {
+  NestApiError,
+  nestCategories,
+  nestCreateSubmission,
+  nestMySubmissions,
+  nestPublishSubmission,
+} from "@/lib/nest/client";
+import { coverUrlOf, mapNestStatus } from "@/lib/nest/mappers";
+import type { NestSubmission } from "@/lib/nest/types";
 import { SUBMITTER_TYPES } from "@/lib/constants";
 
 const submissionSchema = z.object({
@@ -15,9 +19,51 @@ const submissionSchema = z.object({
   teamMembers: z.string().default(""),
   yearCreated: z.number().int().min(1950).max(2100),
   concept: z.string().default(""),
-  whyNeverLive: z.string().default(""),
+  whyNeverLived: z.string().default(""),
   status: z.enum(["draft", "submitted"]).default("draft"),
 });
+
+function serializeSubmission(s: NestSubmission) {
+  return {
+    id: s.id,
+    slug: s.slug,
+    title: s.title,
+    category: s.category.name,
+    categoryId: s.category.id,
+    submitterType: s.submitterType.toLowerCase(),
+    teamMembers: s.teamMembers.map((m) => m.name).join(", "),
+    yearCreated: s.yearCreated,
+    concept: s.concept,
+    whyNeverLived: s.whyNeverLived,
+    status: mapNestStatus(s.status),
+    published: Boolean(s.publishedAt),
+    showcaseYear: s.publishedAt ? new Date(s.publishedAt).getFullYear() : null,
+    likeCount: s.likeCount,
+    coverUrl: coverUrlOf(s),
+    assets: s.assets.map((a) => ({
+      id: a.id,
+      originalName: a.fileName || "asset",
+      filename: a.fileName || a.url,
+      url: a.url,
+      mimeType: a.mimeType || "application/octet-stream",
+    })),
+    user: {
+      id: s.creator.id,
+      name: s.creator.name,
+      agencyName: s.creator.agencyName,
+      avatarUrl: s.creator.avatarUrl,
+    },
+    reviews: [],
+  };
+}
+
+function parseTeamMembers(raw: string) {
+  return raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((name, sortOrder) => ({ name, sortOrder }));
+}
 
 export async function GET() {
   const session = await requireSession();
@@ -25,29 +71,20 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (session.role === "admin" || session.role === "judge") {
-    const all = await db.query.submissions.findMany({
-      orderBy: [desc(submissions.updatedAt)],
-      with: { user: true, assets: true, reviews: true },
-    });
-
-    if (session.role === "judge") {
-      const filtered = all.filter((s) =>
-        ["submitted", "under_review", "shortlisted", "winner"].includes(s.status),
-      );
-      return NextResponse.json({ submissions: filtered });
-    }
-
-    return NextResponse.json({ submissions: all });
+  const token = await getAccessToken();
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const mine = await db.query.submissions.findMany({
-    where: eq(submissions.userId, session.id),
-    orderBy: [desc(submissions.updatedAt)],
-    with: { assets: true, reviews: true },
-  });
-
-  return NextResponse.json({ submissions: mine });
+  try {
+    const mine = await nestMySubmissions(token);
+    return NextResponse.json({ submissions: mine.map(serializeSubmission) });
+  } catch (error) {
+    if (error instanceof NestApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    return NextResponse.json({ error: "Could not load submissions." }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
@@ -56,27 +93,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (session.role === "creator") {
-    const { isEmailVerified } = await import("@/lib/auth-tokens");
-    if (!(await isEmailVerified(session.id))) {
-      return NextResponse.json(
-        { error: "Verify your email before creating submissions." },
-        { status: 403 },
-      );
-    }
+  const token = await getAccessToken();
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const body = await request.json();
     const data = submissionSchema.parse(body);
-    const now = new Date().toISOString();
-
-    if (!(await isActiveCategoryName(data.category))) {
-      return NextResponse.json({ error: "Invalid or inactive category." }, { status: 400 });
-    }
 
     if (data.status === "submitted") {
-      if (!data.concept.trim() || !data.whyNeverLive.trim()) {
+      if (!data.concept.trim() || !data.whyNeverLived.trim()) {
         return NextResponse.json(
           { error: "Concept and why-it-never-went-live are required to submit." },
           { status: 400 },
@@ -84,34 +111,39 @@ export async function POST(request: Request) {
       }
     }
 
-    const row = {
-      id: uuid(),
-      userId: session.id,
-      title: data.title.trim(),
-      category: data.category,
-      submitterType: data.submitterType,
-      teamMembers: data.teamMembers.trim(),
-      yearCreated: data.yearCreated,
-      concept: data.concept.trim(),
-      whyNeverLive: data.whyNeverLive.trim(),
-      status: data.status,
-      published: false,
-      showcaseYear: null as number | null,
-      createdAt: now,
-      updatedAt: now,
-      submittedAt: data.status === "submitted" ? now : null,
-    };
+    const categories = await nestCategories();
+    const category = categories.find(
+      (c) => c.name === data.category || c.slug === data.category,
+    );
+    if (!category) {
+      return NextResponse.json({ error: "Invalid or inactive category." }, { status: 400 });
+    }
 
-    await db.insert(submissions).values(row);
-    const created = await db.query.submissions.findFirst({
-      where: eq(submissions.id, row.id),
-      with: { assets: true },
-    });
+    let created = await nestCreateSubmission(
+      {
+        title: data.title.trim(),
+        categoryId: category.id,
+        yearCreated: data.yearCreated,
+        concept: data.concept.trim(),
+        whyNeverLived: data.whyNeverLived.trim(),
+        submitterType: data.submitterType === "agency" ? "AGENCY" : "INDIVIDUAL",
+        rightsAttested: true,
+        teamMembers: parseTeamMembers(data.teamMembers),
+      },
+      token,
+    );
 
-    return NextResponse.json({ submission: created }, { status: 201 });
+    if (data.status === "submitted") {
+      created = await nestPublishSubmission(created.id, token);
+    }
+
+    return NextResponse.json({ submission: serializeSubmission(created) }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid submission data." }, { status: 400 });
+    }
+    if (error instanceof NestApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
     return NextResponse.json({ error: "Could not create submission." }, { status: 500 });
   }

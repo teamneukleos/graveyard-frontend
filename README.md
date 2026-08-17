@@ -5,59 +5,45 @@ Digital platform celebrating exceptional creative work that never shipped — re
 ## Stack
 
 - Next.js (App Router) + TypeScript + Tailwind
-- SQLite via Drizzle ORM + better-sqlite3
-- Cookie JWT sessions (jose) + bcrypt passwords
-- Local file uploads under `data/uploads`
-- Optional Resend email + Google OAuth
+- NestJS API (`graveyard-api`) + PostgreSQL for all domain data
+- Auth: Nest Bearer JWT stored in httpOnly cookie `graveyard_token` via Next BFF
+- Phase 2: public + portal + admin **reads** go through Nest (no SQLite)
 
 ## Setup
 
+1. Start **graveyard-api** on port 3000 (Postgres + Nest). See that repo’s README.
+2. In this app:
+
 ```bash
 cp .env.example .env.local
-# Optional in development — AUTH_SECRET falls back to a local default.
-# Required in production: openssl rand -base64 32
+# Set JWT_SECRET to the same value as graveyard-api
 npm install
-npm run db:seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3001](http://localhost:3001).
+
+Login/register hit Nest through `/api/auth/*`. Seed admin (from API): `admin@graveyard.local` / `ChangeMeAdmin1!`
 
 ### Environment
 
 | Variable | Purpose |
 |----------|---------|
-| `AUTH_SECRET` | JWT signing secret (required in production) |
-| `APP_URL` | Canonical URL for email links + Google OAuth callback |
-| `RESEND_API_KEY` / `RESEND_FROM` | Send verify/reset emails (otherwise logged to console) |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in |
+| `GRAVEYARD_API_URL` | Nest API base URL (default `http://localhost:3000`) |
+| `JWT_SECRET` | Must match Nest `JWT_SECRET` (middleware role checks) |
+| `APP_URL` | Canonical frontend URL (`http://localhost:3001` in local dev) |
 
-Google redirect URI: `{APP_URL}/api/auth/google/callback`
+### Notes
 
-### Deploy notes
-
-- Set `AUTH_SECRET` in the environment before running in production.
-- Production (Vercel) boots from the committed `demo-data/` snapshot (DB + covers/avatars) so the live site matches local.
-- Refresh the snapshot after changing local demo content: `npm run demo:snapshot`
-- Uploads written at runtime go under `/tmp` on Vercel (ephemeral).
-- SQLite database lives at `data/graveyard.db`.
-- **Vercel:** the app stores SQLite + uploads under `/tmp` (the only writable path). Data is **ephemeral** — cold starts / new instances reset it. For a real production deploy, move to Turso/Postgres + object storage. Also set `AUTH_SECRET` and `APP_URL` in the Vercel project env.
-
-### Demo accounts
-
-Password for all: `password123`
-
-| Role    | Email                     |
-|---------|---------------------------|
-| Admin   | admin@graveyard.studio    |
-| Judge   | judge@graveyard.studio    |
-| Creator | creator@example.com       |
-| Agency  | studio@wura.studio        |
+- No SQLite / Python / native module build required for this frontend.
+- Events, Google OAuth, and email verify/reset are parked until added to Nest.
+- Some admin tools return 501 until those Nest endpoints are wired in the UI.
+- Ensure Nest `CORS_ORIGINS` includes `http://localhost:3001`.
 
 ## Product surfaces
 
-- **Public** — explore feed, showcase, categories, events, leaderboards, creator/agency profiles
-- **Auth** — login/register, Google OAuth, forgot/reset password, email verification
-- **Creator portal** — submit (after verify), draft, upload assets, track status, settings
-- **Judge portal** — review queue, score, comment, shortlist
-- **Admin portal** — submissions, categories, judges, events CRUD, analytics
+- **Public** — explore feed, showcase, categories, leaderboards, creator profiles
+- **Auth** — login/register (Nest)
+- **Creator portal** — drafts, publish, assets (Nest)
+- **Judge portal** — award-cycle queue (Nest)
+- **Admin portal** — partial Nest wiring; some legacy admin actions stubbed

@@ -1,114 +1,39 @@
-import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { v4 as uuid } from "uuid";
-import { createSession, findUserByEmail, hashPassword } from "@/lib/auth";
-import { db } from "@/db";
-import { users } from "@/db/schema";
-import { getAppUrl } from "@/lib/mail";
+import { setAccessToken } from "@/lib/auth";
+import { homePathForRole, mapNestRole } from "@/lib/nest/roles";
+import { nestMe } from "@/lib/nest/client";
 
-type GoogleTokenResponse = {
-  access_token?: string;
-  error?: string;
-};
-
-type GoogleUserInfo = {
-  id: string;
-  email: string;
-  name?: string;
-  verified_email?: boolean;
-  picture?: string;
-};
-
+/**
+ * Nest redirects here after Google OAuth with ?token=...
+ * Sets the httpOnly cookie on the frontend origin, then sends the user to /portal (or ?next=).
+ */
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const code = url.searchParams.get("code");
-  const error = url.searchParams.get("error");
-  const appUrl = getAppUrl();
+  const token = url.searchParams.get("token");
+  const next = url.searchParams.get("next");
+  // Use the request origin (e.g. http://localhost:3001) — not APP_URL / Nest.
+  const appOrigin = url.origin;
 
-  if (error || !code) {
-    return NextResponse.redirect(`${appUrl}/login?error=google_denied`);
+  if (!token) {
+    return NextResponse.redirect(
+      new URL("/login?error=google&message=Missing+sign-in+token", appOrigin),
+    );
   }
 
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    return NextResponse.redirect(`${appUrl}/login?error=google_not_configured`);
+  try {
+    await setAccessToken(token);
+    const user = await nestMe(token);
+    const role = mapNestRole(user.role);
+
+    let destination = homePathForRole(role);
+    if (next && next.startsWith("/") && !next.startsWith("//")) {
+      destination = next;
+    }
+
+    return NextResponse.redirect(new URL(destination, appOrigin));
+  } catch {
+    return NextResponse.redirect(
+      new URL("/login?error=google&message=Could+not+complete+Google+sign-in", appOrigin),
+    );
   }
-
-  const redirectUri = `${appUrl}/api/auth/google/callback`;
-  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      code,
-      client_id: clientId,
-      client_secret: clientSecret,
-      redirect_uri: redirectUri,
-      grant_type: "authorization_code",
-    }),
-  });
-
-  const tokenJson = (await tokenRes.json()) as GoogleTokenResponse;
-  if (!tokenRes.ok || !tokenJson.access_token) {
-    return NextResponse.redirect(`${appUrl}/login?error=google_token`);
-  }
-
-  const profileRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
-    headers: { Authorization: `Bearer ${tokenJson.access_token}` },
-  });
-  const profile = (await profileRes.json()) as GoogleUserInfo;
-  if (!profileRes.ok || !profile.email) {
-    return NextResponse.redirect(`${appUrl}/login?error=google_profile`);
-  }
-
-  const email = profile.email.toLowerCase();
-  let user = await findUserByEmail(email);
-
-  if (!user) {
-    const byGoogle = await db.query.users.findFirst({
-      where: eq(users.googleId, profile.id),
-    });
-    user = byGoogle ?? undefined;
-  }
-
-  if (!user) {
-    const passwordHash = await hashPassword(uuid());
-    const now = new Date().toISOString();
-    const created = {
-      id: uuid(),
-      email,
-      passwordHash,
-      name: profile.name?.trim() || email.split("@")[0],
-      role: "creator" as const,
-      agencyName: null,
-      agencySlug: null,
-      bio: "",
-      avatarFilename: null,
-      emailVerifiedAt: profile.verified_email ? now : null,
-      googleId: profile.id,
-      active: true,
-      createdAt: now,
-    };
-    await db.insert(users).values(created);
-    user = created;
-  } else {
-    const now = new Date().toISOString();
-    await db
-      .update(users)
-      .set({
-        googleId: profile.id,
-        emailVerifiedAt: user.emailVerifiedAt || (profile.verified_email ? now : null),
-      })
-      .where(eq(users.id, user.id));
-  }
-
-  if (!user.active) {
-    return NextResponse.redirect(`${appUrl}/login?error=inactive`);
-  }
-
-  await createSession(user);
-
-  const dest =
-    user.role === "admin" ? "/admin" : user.role === "judge" ? "/judge" : "/portal";
-  return NextResponse.redirect(`${appUrl}${dest}`);
 }

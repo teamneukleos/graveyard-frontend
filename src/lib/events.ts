@@ -1,127 +1,83 @@
-import { and, asc, count, eq, gte, inArray } from "drizzle-orm";
-import { db } from "@/db";
-import { eventRsvps, events, type EventRow } from "@/db/schema";
+import { getAccessToken } from "@/lib/auth";
+import {
+  nestAdminEvents,
+  nestUpcomingEvents,
+} from "@/lib/nest/client";
+import { safeApi } from "@/lib/nest/mappers";
+import type { NestEvent, NestEventFormat, NestEventType } from "@/lib/nest/types";
 
 export type CreatorEvent = {
   id: string;
+  slug: string;
   title: string;
-  type: "meetup" | "salon" | "screening" | "workshop";
+  type: string;
   city: string;
   venue: string;
   startsAt: string;
-  format: "in-person" | "online" | "hybrid";
+  format: string;
   capacity: number;
   blurb: string;
-  active?: boolean;
+  active: boolean;
 };
 
 export type EventWithAvailability = CreatorEvent & {
+  seatsLeft: number;
   spotsLeft: number;
+  rsvpCount: number;
+  hasRsvp: boolean;
   requested: boolean;
 };
 
-function toCreatorEvent(row: EventRow): CreatorEvent {
+const UI_TO_NEST_TYPE: Record<string, NestEventType> = {
+  meetup: "MEETUP",
+  salon: "SALON",
+  screening: "SCREENING",
+  workshop: "WORKSHOP",
+};
+
+const UI_TO_NEST_FORMAT: Record<string, NestEventFormat> = {
+  "in-person": "IN_PERSON",
+  online: "ONLINE",
+  hybrid: "HYBRID",
+};
+
+export function toNestEventType(value: string): NestEventType | null {
+  return UI_TO_NEST_TYPE[value.toLowerCase()] ?? null;
+}
+
+export function toNestEventFormat(value: string): NestEventFormat | null {
+  return UI_TO_NEST_FORMAT[value.toLowerCase()] ?? null;
+}
+
+export function mapNestEvent(event: NestEvent): CreatorEvent {
   return {
-    id: row.id,
-    title: row.title,
-    type: row.type as CreatorEvent["type"],
-    city: row.city,
-    venue: row.venue,
-    startsAt: row.startsAt,
-    format: row.format as CreatorEvent["format"],
-    capacity: row.capacity,
-    blurb: row.blurb,
-    active: row.active,
+    id: event.id,
+    slug: event.slug,
+    title: event.title,
+    type: event.type.toLowerCase(),
+    city: event.city,
+    venue: event.venue,
+    startsAt:
+      typeof event.startsAt === "string"
+        ? event.startsAt
+        : new Date(event.startsAt).toISOString(),
+    format: event.format === "IN_PERSON" ? "in-person" : event.format.toLowerCase(),
+    capacity: event.capacity,
+    blurb: event.blurb,
+    active: event.isActive,
   };
 }
 
-export async function getEventById(eventId: string) {
-  const row = await db.query.events.findFirst({
-    where: eq(events.id, eventId),
-  });
-  return row ? toCreatorEvent(row) : null;
-}
-
-export async function getUpcomingEvents(limit?: number) {
-  const cutoff = new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString();
-  const rows = await db.query.events.findMany({
-    where: and(eq(events.active, true), gte(events.startsAt, cutoff)),
-    orderBy: [asc(events.startsAt)],
-    limit,
-  });
-  return rows.map(toCreatorEvent);
-}
-
-export async function getAllEventsAdmin() {
-  const rows = await db.query.events.findMany({
-    orderBy: [asc(events.startsAt)],
-  });
-  return rows.map(toCreatorEvent);
-}
-
-export async function getRsvpCounts(eventIds: string[]) {
-  const map = new Map<string, number>();
-  if (!eventIds.length) return map;
-
-  const rows = await db
-    .select({
-      eventId: eventRsvps.eventId,
-      total: count(),
-    })
-    .from(eventRsvps)
-    .where(inArray(eventRsvps.eventId, eventIds))
-    .groupBy(eventRsvps.eventId);
-
-  for (const row of rows) {
-    map.set(row.eventId, Number(row.total));
-  }
-  return map;
-}
-
-export async function getUserRsvps(userId: string, eventIds: string[]) {
-  const set = new Set<string>();
-  if (!eventIds.length) return set;
-
-  const rows = await db.query.eventRsvps.findMany({
-    where: and(eq(eventRsvps.userId, userId), inArray(eventRsvps.eventId, eventIds)),
-  });
-  for (const row of rows) set.add(row.eventId);
-  return set;
-}
-
-export async function withEventAvailability(
-  eventList: CreatorEvent[],
-  userId?: string | null,
-): Promise<EventWithAvailability[]> {
-  const ids = eventList.map((e) => e.id);
-  const [counts, mine] = await Promise.all([
-    getRsvpCounts(ids),
-    userId ? getUserRsvps(userId, ids) : Promise.resolve(new Set<string>()),
-  ]);
-
-  return eventList.map((event) => {
-    const taken = counts.get(event.id) ?? 0;
-    return {
-      ...event,
-      spotsLeft: Math.max(0, event.capacity - taken),
-      requested: mine.has(event.id),
-    };
-  });
-}
-
-export function formatEventWhen(iso: string) {
-  const d = new Date(iso);
-  return new Intl.DateTimeFormat("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(d);
-}
-
-export function formatEventType(type: CreatorEvent["type"]) {
-  return type.charAt(0).toUpperCase() + type.slice(1);
+export function mapNestEventWithAvailability(event: NestEvent): EventWithAvailability {
+  const base = mapNestEvent(event);
+  return {
+    ...base,
+    seatsLeft: event.spotsLeft,
+    spotsLeft: event.spotsLeft,
+    rsvpCount: event.rsvpCount,
+    hasRsvp: event.hasRsvp,
+    requested: event.requested,
+  };
 }
 
 export function slugifyAgency(name: string) {
@@ -130,4 +86,63 @@ export function slugifyAgency(name: string) {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+export function formatEventWhen(startsAt: string) {
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(startsAt));
+  } catch {
+    return startsAt;
+  }
+}
+
+export function formatEventType(type: string) {
+  return type.replace(/_/g, " ").replace(/-/g, " ");
+}
+
+export async function getUpcomingEvents(limit = 10): Promise<CreatorEvent[]> {
+  const token = await getAccessToken();
+  const events = await safeApi(nestUpcomingEvents(limit, token), []);
+  return events.map(mapNestEvent);
+}
+
+export async function getUpcomingEventsWithAvailability(
+  limit = 10,
+): Promise<EventWithAvailability[]> {
+  const token = await getAccessToken();
+  const events = await safeApi(nestUpcomingEvents(limit, token), []);
+  return events.map(mapNestEventWithAvailability);
+}
+
+export async function getAllEventsAdmin(): Promise<CreatorEvent[]> {
+  const token = await getAccessToken();
+  if (!token) return [];
+  const events = await safeApi(nestAdminEvents(token), []);
+  return events.map(mapNestEvent);
+}
+
+export async function getEventById(id: string): Promise<CreatorEvent | null> {
+  const events = await getUpcomingEvents(100);
+  return events.find((event) => event.id === id || event.slug === id) ?? null;
+}
+
+export async function withEventAvailability(
+  events: CreatorEvent[],
+  _userId?: string | null,
+): Promise<EventWithAvailability[]> {
+  // Prefer Nest-enriched payloads from getUpcomingEventsWithAvailability.
+  return events.map((event) => ({
+    ...event,
+    seatsLeft: event.capacity,
+    spotsLeft: event.capacity,
+    rsvpCount: 0,
+    hasRsvp: false,
+    requested: false,
+  }));
 }

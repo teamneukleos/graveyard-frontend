@@ -4,6 +4,7 @@ export type UploadResult = {
     id: string;
     originalName: string;
     filename: string;
+    url?: string | null;
   };
   error?: string;
   fileName: string;
@@ -35,6 +36,7 @@ export async function uploadAssets(submissionId: string, files: FileList | File[
           id: data.asset.id,
           originalName: data.asset.originalName,
           filename: data.asset.filename,
+          url: data.asset.url || null,
         },
       });
     } catch {

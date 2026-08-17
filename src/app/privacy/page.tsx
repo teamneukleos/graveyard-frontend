@@ -42,7 +42,7 @@ export default function PrivacyPage() {
 
       <LegalSection title="Cookies and sessions">
         <p>
-          We use an essential session cookie (<code className="rounded bg-soft px-1.5 py-0.5 text-[13px]">graveyard_session</code>)
+          We use an essential session cookie (<code className="rounded bg-soft px-1.5 py-0.5 text-[13px]">graveyard_token</code>)
           to keep you signed in. See our{" "}
           <a className="font-semibold text-accent underline underline-offset-2" href="/cookies">
             Cookie Policy

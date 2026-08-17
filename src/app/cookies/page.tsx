@@ -21,7 +21,7 @@ export default function CookiesPage() {
       <LegalSection title="Essential cookies">
         <p>
           <strong>Session cookie:</strong>{" "}
-          <code className="rounded bg-soft px-1.5 py-0.5 text-[13px]">graveyard_session</code>
+          <code className="rounded bg-soft px-1.5 py-0.5 text-[13px]">graveyard_token</code>
         </p>
         <p>
           An httpOnly cookie that stores your signed-in session so you can vote, submit work, RSVP,

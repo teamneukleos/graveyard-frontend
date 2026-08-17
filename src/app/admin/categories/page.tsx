@@ -2,13 +2,13 @@ import { redirect } from "next/navigation";
 import { CategoriesManager } from "@/components/CategoriesManager";
 import { YardContainer, YardHeader, YardPage } from "@/components/yard/YardPage";
 import { requireSession } from "@/lib/auth";
-import { getAllCategories } from "@/lib/categories";
+import { getAdminCategories } from "@/lib/categories";
 
 export default async function AdminCategoriesPage() {
   const session = await requireSession(["admin"]);
   if (!session) redirect("/login");
 
-  const categories = await getAllCategories();
+  const categories = await getAdminCategories();
 
   return (
     <YardPage>

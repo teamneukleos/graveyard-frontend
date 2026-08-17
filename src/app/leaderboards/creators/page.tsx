@@ -47,10 +47,10 @@ export default async function CreatorsLeaderboardPage() {
                 {String(i + 1).padStart(2, "0")}
               </span>
               <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-ink sm:h-10 sm:w-10">
-                {row.avatarFilename ? (
+                {row.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={`/api/uploads/${row.avatarFilename}`}
+                    src={row.avatarUrl}
                     alt={`${row.name} avatar`}
                     className="h-full w-full object-cover"
                   />

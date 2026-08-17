@@ -12,9 +12,13 @@ export function absoluteUrl(path = "/") {
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-export function absoluteUploadUrl(filename?: string | null) {
-  if (!filename) return absoluteUrl("/brand/logo-on-dark.png");
-  return absoluteUrl(`/api/uploads/${filename}`);
+export function absoluteUploadUrl(filenameOrUrl?: string | null) {
+  if (!filenameOrUrl) return absoluteUrl("/brand/logo-on-dark.png");
+  if (filenameOrUrl.startsWith("http://") || filenameOrUrl.startsWith("https://")) {
+    return filenameOrUrl;
+  }
+  if (filenameOrUrl.startsWith("/")) return absoluteUrl(filenameOrUrl);
+  return absoluteUrl(filenameOrUrl);
 }
 
 /** Clamp meta descriptions to a search-friendly length. */

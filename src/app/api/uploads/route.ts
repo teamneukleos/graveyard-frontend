@@ -1,30 +1,15 @@
-import { eq } from "drizzle-orm";
-import fs from "fs/promises";
-import path from "path";
 import { NextResponse } from "next/server";
-import { v4 as uuid } from "uuid";
-import { db } from "@/db";
-import { assets, submissions } from "@/db/schema";
-import { requireSession } from "@/lib/auth";
-import { getUploadsDir } from "@/lib/paths";
-
-const ALLOWED = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-  "image/svg+xml",
-  "video/mp4",
-  "video/webm",
-  "application/pdf",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "application/zip",
-]);
+import { getAccessToken, requireSession } from "@/lib/auth";
+import { NestApiError, nestUploadAsset } from "@/lib/nest/client";
 
 export async function POST(request: Request) {
   const session = await requireSession(["creator", "admin"]);
   if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const token = await getAccessToken();
+  if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -36,58 +21,48 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing file or submission." }, { status: 400 });
   }
 
-  const submission = await db.query.submissions.findFirst({
-    where: eq(submissions.id, submissionId),
-  });
-
-  if (!submission) {
-    return NextResponse.json({ error: "Submission not found." }, { status: 404 });
-  }
-
-  if (submission.userId !== session.id && session.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const existingAssets = await db.query.assets.findMany({
-    where: eq(assets.submissionId, submissionId),
-    columns: { id: true },
-  });
-  const MAX_ASSETS = 12;
-  if (existingAssets.length >= MAX_ASSETS) {
+  const name = file.name.toLowerCase();
+  const mime = file.type.toLowerCase();
+  if (
+    name.endsWith(".ppt") ||
+    name.endsWith(".pptx") ||
+    name.endsWith(".zip") ||
+    mime.includes("presentation") ||
+    mime.includes("zip")
+  ) {
     return NextResponse.json(
-      { error: `Each project can have up to ${MAX_ASSETS} files.` },
+      {
+        error:
+          "PowerPoint and ZIP uploads are not supported yet. Upload an image, video, or PDF (or link a deck in the API).",
+      },
       { status: 400 },
     );
   }
 
-  const MAX_BYTES = 25 * 1024 * 1024;
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: "Each file must be under 25MB." }, { status: 400 });
-  }
+  try {
+    const asset = (await nestUploadAsset(submissionId, file, file.name, token)) as {
+      id?: string;
+      url?: string;
+      fileName?: string | null;
+      mimeType?: string | null;
+    };
 
-  if (!ALLOWED.has(file.type) && file.type !== "") {
     return NextResponse.json(
-      { error: "Unsupported file type. Upload images, video, PDF, or presentation decks." },
-      { status: 400 },
+      {
+        asset: {
+          id: asset.id ?? crypto.randomUUID(),
+          originalName: file.name,
+          filename: asset.fileName || file.name,
+          url: asset.url ?? null,
+          mimeType: asset.mimeType || file.type || "application/octet-stream",
+        },
+      },
+      { status: 201 },
     );
+  } catch (error) {
+    if (error instanceof NestApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    return NextResponse.json({ error: "Upload failed." }, { status: 500 });
   }
-
-  const uploadDir = getUploadsDir();
-  const ext = path.extname(file.name) || "";
-  const filename = `${uuid()}${ext}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(path.join(uploadDir, filename), buffer);
-
-  const asset = {
-    id: uuid(),
-    submissionId,
-    filename,
-    originalName: file.name,
-    mimeType: file.type || "application/octet-stream",
-    size: buffer.length,
-    createdAt: new Date().toISOString(),
-  };
-
-  await db.insert(assets).values(asset);
-  return NextResponse.json({ asset }, { status: 201 });
 }

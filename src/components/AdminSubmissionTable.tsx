@@ -120,7 +120,7 @@ export function AdminSubmissionTable({ submissions }: { submissions: Row[] }) {
                     onChange={() => toggle(row.id)}
                   />
                 </td>
-                <td className="px-3 py-3 text-bone">{row.title}</td>
+                <td className="px-3 py-3 font-medium text-ink">{row.title}</td>
                 <td className="px-3 py-3 text-ash">{row.category}</td>
                 <td className="px-3 py-3 text-ash">{row.submitter}</td>
                 <td className="px-3 py-3 text-ash">
