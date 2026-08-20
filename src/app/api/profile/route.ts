@@ -6,7 +6,7 @@ import { mapNestRole } from "@/lib/nest/roles";
 
 const patchSchema = z.object({
   name: z.string().min(1).optional(),
-  agencyName: z.string().nullable().optional(),
+  agencyName: z.string().min(1).nullable().optional(),
   bio: z.string().max(1000).optional(),
 });
 
@@ -25,6 +25,7 @@ export async function GET() {
       bio: session.bio ?? "",
       avatarUrl: session.avatarUrl,
       emailVerified: session.emailVerified,
+      agencyOnboardingRequired: session.agencyOnboardingRequired,
     },
   });
 }
@@ -57,6 +58,7 @@ export async function PATCH(request: Request) {
         bio: updated.bio ?? "",
         avatarUrl: updated.avatarUrl,
         emailVerified: Boolean(updated.emailVerified),
+        agencyOnboardingRequired: Boolean(updated.agencyOnboardingRequired),
       },
     });
   } catch (error) {

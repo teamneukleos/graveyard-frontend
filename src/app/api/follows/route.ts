@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAccessToken } from "@/lib/auth";
-import { NestApiError, nestLike, nestUnlike } from "@/lib/nest/client";
+import { NestApiError, nestFollowUser, nestUnfollowUser } from "@/lib/nest/client";
 
-const voteSchema = z.object({
-  submissionId: z.string().min(1),
+const bodySchema = z.object({
+  userId: z.string().min(1),
 });
 
-async function handle(request: Request, liked: boolean) {
+async function handle(request: Request, following: boolean) {
   const token = await getAccessToken();
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -15,26 +15,25 @@ async function handle(request: Request, liked: boolean) {
 
   try {
     const body = await request.json();
-    const { submissionId } = voteSchema.parse(body);
-    const result = liked
-      ? await nestLike(submissionId, token)
-      : await nestUnlike(submissionId, token);
+    const { userId } = bodySchema.parse(body);
+    const result = following
+      ? await nestFollowUser(userId, token)
+      : await nestUnfollowUser(userId, token);
 
     return NextResponse.json({
-      voted: result.liked,
-      count: result.voteScore,
-      likeCount: result.likeCount,
-      submissionId: result.submissionId,
+      following: result.following,
+      followerCount: result.followerCount,
+      userId: result.userId,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid vote." }, { status: 400 });
+      return NextResponse.json({ error: "Invalid follow request." }, { status: 400 });
     }
     if (error instanceof NestApiError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error("[votes]", error);
-    return NextResponse.json({ error: "Could not save vote." }, { status: 500 });
+    console.error("[follows]", error);
+    return NextResponse.json({ error: "Could not update follow." }, { status: 500 });
   }
 }
 

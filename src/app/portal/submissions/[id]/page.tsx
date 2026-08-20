@@ -1,12 +1,19 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { EnterForAward } from "@/components/EnterForAward";
+import { ShareLinkButton } from "@/components/ShareLinkButton";
 import { StatusPill } from "@/components/StatusPill";
 import { SubmissionEditor } from "@/components/SubmissionEditor";
 import { YardCard, YardContainer, YardHeader, YardPage } from "@/components/yard/YardPage";
 import { getAccessToken, requireSession } from "@/lib/auth";
 import { getActiveCategoryNames } from "@/lib/categories";
-import { NestApiError, nestMySubmission } from "@/lib/nest/client";
-import { isDraftEditable, mapNestStatus } from "@/lib/nest/mappers";
+import {
+  NestApiError,
+  nestAwardEntriesForSubmission,
+  nestMySubmission,
+  nestOpenAwardCycles,
+} from "@/lib/nest/client";
+import { isDraftEditable, mapNestStatus, safeApi } from "@/lib/nest/mappers";
 
 type Params = {
   params: Promise<{ id: string }>;
@@ -14,7 +21,7 @@ type Params = {
 };
 
 export default async function SubmissionDetailPage({ params, searchParams }: Params) {
-  const session = await requireSession(["creator", "admin"]);
+  const session = await requireSession(["creator", "agency", "admin"]);
   if (!session) redirect("/login");
 
   const { id } = await params;
@@ -37,6 +44,15 @@ export default async function SubmissionDetailPage({ params, searchParams }: Par
     ? activeCategories
     : [submission.category.name, ...activeCategories];
 
+  const canEnterAwards =
+    submission.status === "PUBLISHED" || submission.status === "UNDER_REVIEW";
+  const [openCycles, existingEntries] = canEnterAwards
+    ? await Promise.all([
+        safeApi(nestOpenAwardCycles(), []),
+        safeApi(nestAwardEntriesForSubmission(submission.id, token), []),
+      ])
+    : [[], []];
+
   return (
     <YardPage>
       <YardHeader
@@ -47,6 +63,17 @@ export default async function SubmissionDetailPage({ params, searchParams }: Par
         actions={
           <>
             <StatusPill status={status} />
+            {submission.status === "PUBLISHED" ? (
+              <>
+                <Link href={`/showcase/${submission.slug}`} className="btn btn-outline">
+                  Public page
+                </Link>
+                <ShareLinkButton
+                  path={`/showcase/${submission.slug}`}
+                  label="Copy project link"
+                />
+              </>
+            ) : null}
             <Link href="/portal" className="btn btn-ghost">
               Portal
             </Link>
@@ -106,6 +133,21 @@ export default async function SubmissionDetailPage({ params, searchParams }: Par
                 ))}
               </ul>
             </YardCard>
+            {canEnterAwards ? (
+              <YardCard className="p-6">
+                <h2 className="plot-label">Enter an award cycle</h2>
+                <p className="mt-2 text-[14px] text-mute">
+                  Put this project up for an open award. Judges will review entries for that cycle.
+                </p>
+                <div className="mt-4">
+                  <EnterForAward
+                    submissionId={submission.id}
+                    openCycles={openCycles}
+                    existingEntries={existingEntries}
+                  />
+                </div>
+              </YardCard>
+            ) : null}
           </div>
         )}
       </YardContainer>

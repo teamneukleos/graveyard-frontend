@@ -1,7 +1,8 @@
 "use client";
 
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { AuthPromptModal } from "@/components/AuthPromptModal";
 
 export function VoteButton({
   submissionId,
@@ -20,7 +21,11 @@ export function VoteButton({
   const [voted, setVoted] = useState(initialVoted);
   const [count, setCount] = useState(initialCount);
   const [error, setError] = useState("");
+  const [authOpen, setAuthOpen] = useState(false);
+  const [returnPath, setReturnPath] = useState("/");
   const [pending, startTransition] = useTransition();
+
+  const closeAuth = useCallback(() => setAuthOpen(false), []);
 
   useEffect(() => {
     setVoted(initialVoted);
@@ -40,8 +45,13 @@ export function VoteButton({
     const data = await res.json();
 
     if (res.status === 401) {
-      setError("Log in to like.");
-      router.push(`/login?next=${encodeURIComponent(window.location.pathname)}`);
+      setReturnPath(window.location.pathname + window.location.search);
+      setAuthOpen(true);
+      return;
+    }
+
+    if (res.status === 403) {
+      setError(data.error || "Verify your email to vote.");
       return;
     }
 
@@ -79,6 +89,8 @@ export function VoteButton({
           {error}
         </p>
       ) : null}
+
+      <AuthPromptModal open={authOpen} onClose={closeAuth} action="like" nextPath={returnPath} />
     </div>
   );
 }

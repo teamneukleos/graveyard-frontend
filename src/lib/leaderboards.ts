@@ -1,4 +1,5 @@
 import {
+  nestLeaderboardAgencies,
   nestLeaderboardCreators,
   nestLeaderboardWorks,
   nestListSubmissions,
@@ -16,7 +17,6 @@ export function weekStartIso(date = new Date()) {
 
 export async function getVoteCountsForIds(ids: string[]) {
   const map = new Map<string, number>();
-  // Nest list responses already include likeCount; callers usually pass mapped counts.
   for (const id of ids) map.set(id, 0);
   return map;
 }
@@ -61,7 +61,7 @@ export async function getCategoryLeaders(category?: string, limit = 10) {
       coverFilename: null,
       submitter: s.creator.agencyName || s.creator.name,
       submitterType: s.submitterType.toLowerCase(),
-      votes: s.likeCount,
+      votes: s.voteScore ?? s.likeCount,
     }))
     .sort((a, b) => b.votes - a.votes || a.title.localeCompare(b.title))
     .slice(0, limit);
@@ -80,31 +80,20 @@ export type EntityLeader = {
 
 export async function getWeeklyLeaderboard(kind: "creator" | "agency", limit = 20) {
   if (kind === "agency") {
-    // Nest has no agency leaderboard yet — derive lightly from works board.
-    const works = await safeApi(nestLeaderboardWorks(Math.min(limit * 3, 50)), {
+    const board = await safeApi(nestLeaderboardAgencies(limit), {
       window: { startsAt: "", endsAt: "" },
       items: [],
     });
-    const map = new Map<string, EntityLeader>();
-    for (const item of works.items) {
-      if (!item.agencyName) continue;
-      const key = item.agencyName;
-      const current = map.get(key) || {
-        key,
-        name: item.agencyName,
-        kind: "agency" as const,
-        votes: 0,
-        entries: 0,
-        avatarUrl: null,
-        href: `/agencies/${encodeURIComponent(item.agencyName)}`,
-      };
-      current.votes += item.weeklyLikes;
-      current.entries += 1;
-      map.set(key, current);
-    }
-    return Array.from(map.values())
-      .sort((a, b) => b.votes - a.votes || b.entries - a.entries)
-      .slice(0, limit);
+    return board.items.map((item) => ({
+      key: item.creatorId,
+      name: item.agencyName || item.name,
+      kind: "agency" as const,
+      votes: item.weeklyLikes,
+      entries: item.likedSubmissions,
+      avatarUrl: item.avatarUrl,
+      avatarFilename: null,
+      href: `/agencies/${item.creatorId}`,
+    }));
   }
 
   const board = await safeApi(nestLeaderboardCreators(limit), {
@@ -137,8 +126,8 @@ export async function getTrendingWorks(limit = 12): Promise<CategoryLeader[]> {
     coverUrl: item.coverUrl,
     coverFilename: null,
     submitter: item.agencyName || item.creatorName,
-    submitterType: item.agencyName ? "agency" : "individual",
-    votes: item.weeklyLikes || item.likeCount,
+    submitterType: item.creatorRole === "AGENCY" || item.agencyName ? "agency" : "individual",
+    votes: item.weeklyLikes || item.voteScore || item.likeCount,
   }));
 }
 

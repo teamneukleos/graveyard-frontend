@@ -4,6 +4,7 @@ import type {
   NestAuthResponse,
   NestAdminAnalytics,
   NestAwardCycle,
+  NestAwardEntry,
   NestCategory,
   NestCreatorsLeaderboard,
   NestEvent,
@@ -11,9 +12,11 @@ import type {
   NestEventRsvpResponse,
   NestEventType,
   NestFeaturedItem,
+  NestFollowResponse,
   NestJudgeQueueItem,
   NestLikeResponse,
   NestPaginatedSubmissions,
+  NestPublicProfile,
   NestRole,
   NestShowcaseItem,
   NestSubmission,
@@ -119,6 +122,7 @@ export function nestRegister(input: {
   email: string;
   password: string;
   name: string;
+  role?: "CREATOR" | "AGENCY";
   agencyName?: string;
 }) {
   return nestFetch<NestAuthResponse>("/auth/register", {
@@ -306,6 +310,10 @@ export function nestLeaderboardCreators(limit = 20) {
   return nestFetch<NestCreatorsLeaderboard>("/leaderboard/creators", { query: { limit } });
 }
 
+export function nestLeaderboardAgencies(limit = 20) {
+  return nestFetch<NestCreatorsLeaderboard>("/leaderboard/agencies", { query: { limit } });
+}
+
 export function nestShowcase(query?: {
   year?: number;
   category?: string;
@@ -319,8 +327,124 @@ export function nestFeatured() {
   return nestFetch<NestFeaturedItem[]>("/featured");
 }
 
-export function nestAwardCycles() {
-  return nestFetch<NestAwardCycle[]>("/award-cycles");
+export async function nestAwardCycles(token?: string | null) {
+  return nestFetch<NestAwardCycle[]>("/award-cycles", {
+    token: await optionalToken(token),
+  });
+}
+
+export async function nestAwardCycle(id: string, token?: string | null) {
+  return nestFetch<NestAwardCycle>(`/award-cycles/${encodeURIComponent(id)}`, {
+    token: await optionalToken(token),
+  });
+}
+
+export async function nestCreateAwardCycle(
+  body: {
+    name: string;
+    year: number;
+    startsAt: string;
+    endsAt?: string;
+    judgingEndsAt?: string;
+  },
+  token?: string | null,
+) {
+  return nestFetch<NestAwardCycle>("/award-cycles", {
+    method: "POST",
+    token: await optionalToken(token),
+    body,
+  });
+}
+
+export async function nestUpdateAwardCycle(
+  id: string,
+  body: Partial<{
+    name: string;
+    year: number;
+    startsAt: string;
+    endsAt: string | null;
+    judgingEndsAt: string | null;
+    status: NestAwardCycle["status"];
+  }>,
+  token?: string | null,
+) {
+  return nestFetch<NestAwardCycle>(`/award-cycles/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    token: await optionalToken(token),
+    body,
+  });
+}
+
+export async function nestAssignAwardJudge(
+  cycleId: string,
+  userId: string,
+  token?: string | null,
+) {
+  return nestFetch<NestAwardCycle>(
+    `/award-cycles/${encodeURIComponent(cycleId)}/judges`,
+    {
+      method: "POST",
+      token: await optionalToken(token),
+      body: { userId },
+    },
+  );
+}
+
+export async function nestRemoveAwardJudge(
+  cycleId: string,
+  userId: string,
+  token?: string | null,
+) {
+  return nestFetch<NestAwardCycle>(
+    `/award-cycles/${encodeURIComponent(cycleId)}/judges/${encodeURIComponent(userId)}`,
+    {
+      method: "DELETE",
+      token: await optionalToken(token),
+    },
+  );
+}
+
+export function nestOpenAwardCycles() {
+  return nestFetch<NestAwardCycle[]>("/award-cycles/open");
+}
+
+export async function nestAwardEntriesForSubmission(
+  submissionId: string,
+  token?: string | null,
+) {
+  return nestFetch<NestAwardEntry[]>(
+    `/award-cycles/entries/by-submission/${encodeURIComponent(submissionId)}`,
+    { token: await optionalToken(token) },
+  );
+}
+
+export async function nestEnterAwardCycle(
+  cycleId: string,
+  submissionId: string,
+  token?: string | null,
+) {
+  return nestFetch<NestAwardEntry>(
+    `/award-cycles/${encodeURIComponent(cycleId)}/entries`,
+    {
+      method: "POST",
+      token: await optionalToken(token),
+      body: { submissionId },
+    },
+  );
+}
+
+export async function nestWithdrawAwardEntry(
+  cycleId: string,
+  submissionId: string,
+  token?: string | null,
+) {
+  return nestFetch<{ message: string }>(
+    `/award-cycles/${encodeURIComponent(cycleId)}/entries/${encodeURIComponent(submissionId)}`,
+    {
+      method: "DELETE",
+      token: await optionalToken(token),
+    },
+  );
 }
 
 export async function nestAwardQueue(cycleId: string, token?: string | null) {
@@ -441,6 +565,33 @@ export async function nestListUsers(
     token: await optionalToken(token),
     query,
   });
+}
+
+export async function nestPublicProfile(userId: string, token?: string | null) {
+  return nestFetch<NestPublicProfile>(
+    `/users/${encodeURIComponent(userId)}/profile`,
+    { token: await optionalToken(token) },
+  );
+}
+
+export async function nestFollowUser(userId: string, token?: string | null) {
+  return nestFetch<NestFollowResponse>(
+    `/users/${encodeURIComponent(userId)}/follow`,
+    {
+      method: "POST",
+      token: await optionalToken(token),
+    },
+  );
+}
+
+export async function nestUnfollowUser(userId: string, token?: string | null) {
+  return nestFetch<NestFollowResponse>(
+    `/users/${encodeURIComponent(userId)}/follow`,
+    {
+      method: "DELETE",
+      token: await optionalToken(token),
+    },
+  );
 }
 
 export async function nestCreateManagedUser(

@@ -49,7 +49,7 @@ export const SUBMISSION_STATUSES = [
 
 export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
 
-export const ROLES = ["creator", "judge", "admin"] as const;
+export const ROLES = ["creator", "agency", "judge", "admin"] as const;
 export type Role = (typeof ROLES)[number];
 
 export const SUBMITTER_TYPES = ["individual", "agency"] as const;

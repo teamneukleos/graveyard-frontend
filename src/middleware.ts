@@ -13,9 +13,11 @@ function secretKey() {
 function mapRole(role: string) {
   if (role === "SUPER_ADMIN" || role === "ADMIN") return "admin";
   if (role === "JUDGE") return "judge";
+  if (role === "AGENCY") return "agency";
   if (role === "CREATOR") return "creator";
   // Already-mapped lowercase (shouldn't appear in Nest tokens)
-  if (role === "admin" || role === "judge" || role === "creator") return role;
+  if (role === "admin" || role === "judge" || role === "creator" || role === "agency")
+    return role;
   return null;
 }
 
@@ -45,7 +47,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/admin") ||
     pathname.startsWith("/judge") ||
     pathname.startsWith("/portal") ||
-    pathname.startsWith("/settings");
+    pathname.startsWith("/settings") ||
+    pathname.startsWith("/onboarding");
 
   if (!needsAuth) return NextResponse.next();
 
@@ -63,13 +66,29 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  if (pathname.startsWith("/portal") && role !== "creator" && role !== "admin") {
+  if (pathname.startsWith("/portal") && role !== "creator" && role !== "agency" && role !== "admin") {
     return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  if (pathname.startsWith("/onboarding/agency") && role !== "agency") {
+    return NextResponse.redirect(new URL(homePathForMappedRole(role), request.url));
   }
 
   return NextResponse.next();
 }
 
+function homePathForMappedRole(role: string) {
+  if (role === "admin") return "/admin";
+  if (role === "judge") return "/judge";
+  return "/portal";
+}
+
 export const config = {
-  matcher: ["/admin/:path*", "/judge/:path*", "/portal/:path*", "/settings/:path*"],
+  matcher: [
+    "/admin/:path*",
+    "/judge/:path*",
+    "/portal/:path*",
+    "/settings/:path*",
+    "/onboarding/:path*",
+  ],
 };

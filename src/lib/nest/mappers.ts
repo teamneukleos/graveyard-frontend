@@ -43,7 +43,7 @@ export function submissionToFeedItem(
     coverUrl: coverUrlOf(submission),
     submitter: submission.creator.agencyName || submission.creator.name,
     concept: submission.concept,
-    votes: submission.likeCount,
+    votes: submission.voteScore ?? submission.likeCount,
     voted: opts?.voted ?? false,
     submissionId: submission.id,
   };

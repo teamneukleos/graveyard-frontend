@@ -43,8 +43,10 @@ export async function findSubmissionsByAgency(agencyKey: string) {
   const decoded = decodeURIComponent(agencyKey);
   const all = await listAllPublicSubmissions();
   return all.filter((s) => {
-    if (s.submitterType !== "AGENCY" || !s.creator.agencyName) return false;
-    const name = s.creator.agencyName;
+    const isAgencyAccount = s.creator.role === "AGENCY" || s.submitterType === "AGENCY";
+    if (!isAgencyAccount) return false;
+    if (s.creator.id === decoded) return true;
+    const name = s.creator.agencyName || s.creator.name;
     return (
       name === decoded ||
       name.toLowerCase() === decoded.toLowerCase() ||
