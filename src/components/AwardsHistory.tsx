@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { resolveAssetUrl } from "@/lib/asset-url";
 
 export type AwardEntry = {
   id: string;
@@ -29,7 +30,7 @@ export function toAwardEntries(
       category: p.category,
       status: p.status as "winner" | "shortlisted",
       year: p.showcaseYear || p.yearCreated,
-      coverUrl: p.coverUrl ?? p.assets?.[0]?.url ?? null,
+      coverUrl: resolveAssetUrl(p.coverUrl ?? p.assets?.[0]?.url ?? null),
     }))
     .sort((a, b) => b.year - a.year || a.title.localeCompare(b.title));
 }

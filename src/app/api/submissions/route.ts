@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { resolveAssetUrl } from "@/lib/asset-url";
 import { getAccessToken, requireSession } from "@/lib/auth";
 import {
   NestApiError,
@@ -44,14 +45,14 @@ function serializeSubmission(s: NestSubmission) {
       id: a.id,
       originalName: a.fileName || "asset",
       filename: a.fileName || a.url,
-      url: a.url,
+      url: resolveAssetUrl(a.url) || a.url,
       mimeType: a.mimeType || "application/octet-stream",
     })),
     user: {
       id: s.creator.id,
       name: s.creator.name,
       agencyName: s.creator.agencyName,
-      avatarUrl: s.creator.avatarUrl,
+      avatarUrl: resolveAssetUrl(s.creator.avatarUrl) || s.creator.avatarUrl,
     },
     reviews: [],
   };

@@ -4,6 +4,7 @@ import {
   nestLeaderboardWorks,
   nestListSubmissions,
 } from "@/lib/nest/client";
+import { resolveAssetUrl } from "@/lib/asset-url";
 import { coverUrlOf, safeApi } from "@/lib/nest/mappers";
 
 export function weekStartIso(date = new Date()) {
@@ -90,7 +91,7 @@ export async function getWeeklyLeaderboard(kind: "creator" | "agency", limit = 2
       kind: "agency" as const,
       votes: item.weeklyLikes,
       entries: item.likedSubmissions,
-      avatarUrl: item.avatarUrl,
+      avatarUrl: resolveAssetUrl(item.avatarUrl),
       avatarFilename: null,
       href: `/agencies/${item.creatorId}`,
     }));
@@ -107,7 +108,7 @@ export async function getWeeklyLeaderboard(kind: "creator" | "agency", limit = 2
     kind: "creator" as const,
     votes: item.weeklyLikes,
     entries: item.likedSubmissions,
-    avatarUrl: item.avatarUrl,
+    avatarUrl: resolveAssetUrl(item.avatarUrl),
     avatarFilename: null,
     href: `/creators/${item.creatorId}`,
   }));
@@ -123,7 +124,7 @@ export async function getTrendingWorks(limit = 12): Promise<CategoryLeader[]> {
     slug: item.slug,
     title: item.title,
     category: item.categorySlug,
-    coverUrl: item.coverUrl,
+    coverUrl: resolveAssetUrl(item.coverUrl),
     coverFilename: null,
     submitter: item.agencyName || item.creatorName,
     submitterType: item.creatorRole === "AGENCY" || item.agencyName ? "agency" : "individual",

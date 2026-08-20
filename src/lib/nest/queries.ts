@@ -1,3 +1,4 @@
+import { resolveAssetUrl } from "@/lib/asset-url";
 import { nestListSubmissions, nestShowcase } from "@/lib/nest/client";
 import { safeApi } from "@/lib/nest/mappers";
 import type { NestShowcaseItem, NestSubmission } from "@/lib/nest/types";
@@ -79,7 +80,7 @@ export function showcaseItemToFeedFields(item: NestShowcaseItem) {
     category: item.categoryName,
     status: item.placement === "WINNER" ? "winner" : "shortlisted",
     yearCreated: item.cycleYear,
-    coverUrl: item.coverUrl,
+    coverUrl: resolveAssetUrl(item.coverUrl),
     submitter: item.agencyName || item.creatorName,
     votes: item.likeCount,
     voted: false,

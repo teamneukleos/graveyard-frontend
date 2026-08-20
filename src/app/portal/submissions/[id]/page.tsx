@@ -5,6 +5,7 @@ import { ShareLinkButton } from "@/components/ShareLinkButton";
 import { StatusPill } from "@/components/StatusPill";
 import { SubmissionEditor } from "@/components/SubmissionEditor";
 import { YardCard, YardContainer, YardHeader, YardPage } from "@/components/yard/YardPage";
+import { resolveAssetUrl } from "@/lib/asset-url";
 import { getAccessToken, requireSession } from "@/lib/auth";
 import { getActiveCategoryNames } from "@/lib/categories";
 import {
@@ -101,7 +102,7 @@ export default async function SubmissionDetailPage({ params, searchParams }: Par
                   id: a.id,
                   originalName: a.fileName || "asset",
                   filename: a.fileName || a.url,
-                  url: a.url,
+                  url: resolveAssetUrl(a.url) || a.url,
                 })),
               }}
             />
@@ -123,7 +124,7 @@ export default async function SubmissionDetailPage({ params, searchParams }: Par
                   <li key={asset.id}>
                     <a
                       className="font-semibold text-accent underline underline-offset-4"
-                      href={asset.url}
+                      href={resolveAssetUrl(asset.url) || asset.url}
                       target="_blank"
                       rel="noreferrer"
                     >

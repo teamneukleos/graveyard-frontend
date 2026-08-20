@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { resolveAssetUrl } from "@/lib/asset-url";
 import { getAccessToken, requireSession } from "@/lib/auth";
 import { NestApiError, nestUpdateProfile } from "@/lib/nest/client";
 import { mapNestRole } from "@/lib/nest/roles";
@@ -56,7 +57,7 @@ export async function PATCH(request: Request) {
         nestRole: updated.role,
         agencyName: updated.agencyName,
         bio: updated.bio ?? "",
-        avatarUrl: updated.avatarUrl,
+        avatarUrl: resolveAssetUrl(updated.avatarUrl),
         emailVerified: Boolean(updated.emailVerified),
         agencyOnboardingRequired: Boolean(updated.agencyOnboardingRequired),
       },

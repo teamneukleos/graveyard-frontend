@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { resolveAssetUrl } from "@/lib/asset-url";
 import { setAccessToken } from "@/lib/auth";
 import { NestApiError, nestLogin } from "@/lib/nest/client";
 import { mapNestRole, postAuthPath } from "@/lib/nest/roles";
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
         role,
         nestRole: result.user.role,
         agencyName: result.user.agencyName,
-        avatarUrl: result.user.avatarUrl,
+        avatarUrl: resolveAssetUrl(result.user.avatarUrl),
         emailVerified: Boolean(result.user.emailVerified),
         agencyOnboardingRequired: Boolean(result.user.agencyOnboardingRequired),
       },

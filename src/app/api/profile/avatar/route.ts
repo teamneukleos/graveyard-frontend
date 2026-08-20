@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveAssetUrl } from "@/lib/asset-url";
 import { getAccessToken, requireSession } from "@/lib/auth";
 import { NestApiError, nestUploadAvatar } from "@/lib/nest/client";
 
@@ -17,13 +18,14 @@ export async function POST(request: Request) {
 
   try {
     const updated = await nestUploadAvatar(token, file, file.name || "avatar.jpg");
+    const avatarUrl = resolveAssetUrl(updated.avatarUrl);
     return NextResponse.json({
-      avatarUrl: updated.avatarUrl,
+      avatarUrl,
       user: {
         id: updated.id,
         email: updated.email,
         name: updated.name,
-        avatarUrl: updated.avatarUrl,
+        avatarUrl,
       },
     });
   } catch (error) {
