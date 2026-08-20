@@ -5,7 +5,7 @@ import { NestApiError, nestDeleteAsset } from "@/lib/nest/client";
 type Params = { params: Promise<{ id: string; assetId: string }> };
 
 export async function DELETE(_request: Request, { params }: Params) {
-  const session = await requireSession(["creator", "admin"]);
+  const session = await requireSession(["creator", "agency", "admin"]);
   const token = await getAccessToken();
   if (!session || !token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

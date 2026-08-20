@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { playLoaderScare, prefersReducedMotion, unlockHauntAudio } from "@/lib/haunt-audio";
+import { prefersReducedMotion } from "@/lib/haunt-audio";
 
 const STORAGE_KEY = "graveyard-entered";
 
@@ -28,8 +28,6 @@ export function ScareIntro() {
   const [frame, setFrame] = useState(0);
   const [fading, setFading] = useState(false);
   const timers = useRef<number[]>([]);
-  const cleanupAudio = useRef<(() => void) | null>(null);
-  const audioStarted = useRef(false);
 
   const clearTimers = useCallback(() => {
     for (const id of timers.current) window.clearTimeout(id);
@@ -38,8 +36,6 @@ export function ScareIntro() {
 
   const finish = useCallback(() => {
     clearTimers();
-    cleanupAudio.current?.();
-    cleanupAudio.current = null;
     try {
       sessionStorage.setItem(STORAGE_KEY, "1");
     } catch {
@@ -49,14 +45,6 @@ export function ScareIntro() {
     const id = window.setTimeout(() => setPhase("done"), 700);
     timers.current.push(id);
   }, [clearTimers]);
-
-  const ensureAudio = useCallback(async () => {
-    if (audioStarted.current) return;
-    const ctx = await unlockHauntAudio();
-    if (!ctx) return;
-    audioStarted.current = true;
-    cleanupAudio.current = playLoaderScare(ctx);
-  }, []);
 
   const startSequence = useCallback(() => {
     const reduced = prefersReducedMotion();
@@ -69,7 +57,6 @@ export function ScareIntro() {
       return;
     }
 
-    void ensureAudio();
     setPhase("playing");
     setFrame(0);
 
@@ -80,7 +67,7 @@ export function ScareIntro() {
     });
     const endId = window.setTimeout(finish, FRAMES.length * STEP_MS + HOLD_EXTRA);
     timers.current.push(endId);
-  }, [ensureAudio, finish]);
+  }, [finish]);
 
   useEffect(() => {
     try {
@@ -94,20 +81,6 @@ export function ScareIntro() {
     startSequence();
   }, [startSequence]);
 
-  // Browsers often block audio until a gesture  -  unlock on first tap/key during the load
-  useEffect(() => {
-    if (phase !== "playing") return;
-    const onInteract = () => {
-      void ensureAudio();
-    };
-    window.addEventListener("pointerdown", onInteract);
-    window.addEventListener("keydown", onInteract);
-    return () => {
-      window.removeEventListener("pointerdown", onInteract);
-      window.removeEventListener("keydown", onInteract);
-    };
-  }, [phase, ensureAudio]);
-
   useEffect(() => {
     if (phase !== "playing") return;
     const prev = document.body.style.overflow;
@@ -120,7 +93,6 @@ export function ScareIntro() {
   useEffect(() => {
     return () => {
       clearTimers();
-      cleanupAudio.current?.();
     };
   }, [clearTimers]);
 

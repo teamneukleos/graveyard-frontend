@@ -88,7 +88,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await requireSession(["creator", "admin"]);
+  const session = await requireSession(["creator", "agency", "admin"]);
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

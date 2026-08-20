@@ -20,6 +20,8 @@ export type SessionUser = {
   bio: string | null;
   avatarUrl: string | null;
   emailVerified: boolean;
+  memberOfAgency: NestUser["memberOfAgency"];
+  agencyOnboardingRequired: boolean;
 };
 
 function jwtSecretKey() {
@@ -39,6 +41,11 @@ function toSessionUser(user: NestUser): SessionUser {
     bio: user.bio ?? null,
     avatarUrl: user.avatarUrl ?? null,
     emailVerified: Boolean(user.emailVerified),
+    memberOfAgency: user.memberOfAgency ?? null,
+    agencyOnboardingRequired: Boolean(
+      user.agencyOnboardingRequired ??
+        (user.role === "AGENCY" && !user.agencyName?.trim()),
+    ),
   };
 }
 

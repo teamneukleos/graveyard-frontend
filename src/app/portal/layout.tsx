@@ -1,5 +1,8 @@
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { PortalNav } from "@/components/yard/PortalNav";
+import { requireSession } from "@/lib/auth";
+import { needsAgencyOnboarding } from "@/lib/nest/roles";
 import { buildMetadata } from "@/lib/seo";
 
 const PORTAL_NAV = [
@@ -15,7 +18,20 @@ export const metadata: Metadata = buildMetadata({
   noIndex: true,
 });
 
-export default function PortalLayout({ children }: { children: React.ReactNode }) {
+export default async function PortalLayout({ children }: { children: React.ReactNode }) {
+  const session = await requireSession(["creator", "agency", "admin"]);
+  if (!session) redirect("/login?next=/portal");
+
+  if (
+    needsAgencyOnboarding({
+      role: session.nestRole,
+      agencyName: session.agencyName,
+      agencyOnboardingRequired: session.agencyOnboardingRequired,
+    })
+  ) {
+    redirect("/onboarding/agency");
+  }
+
   return (
     <div className="flex flex-1 flex-col">
       <PortalNav items={PORTAL_NAV} />

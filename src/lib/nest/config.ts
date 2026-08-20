@@ -14,10 +14,16 @@ export function getPublicNestApiUrl() {
 }
 
 /** Direct Nest Google OAuth start URL (not the Next BFF). */
-export function googleAuthStartUrl(nextPath?: string | null) {
+export function googleAuthStartUrl(
+  nextPath?: string | null,
+  role?: "CREATOR" | "AGENCY" | null,
+) {
   const url = new URL(`${getPublicNestApiUrl()}/auth/google`);
   if (nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//")) {
     url.searchParams.set("next", nextPath);
+  }
+  if (role === "CREATOR" || role === "AGENCY") {
+    url.searchParams.set("role", role);
   }
   return url.toString();
 }

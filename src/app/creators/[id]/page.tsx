@@ -3,9 +3,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AwardsHistory, toAwardEntries } from "@/components/AwardsHistory";
 import { FeedGrid, type FeedItem } from "@/components/FeedCard";
+import { FollowButton } from "@/components/FollowButton";
 import { JsonLd } from "@/components/JsonLd";
+import { ShareLinkButton } from "@/components/ShareLinkButton";
 import { YardContainer, YardEmpty, YardHeader, YardPage, YardStat } from "@/components/yard/YardPage";
-import { coverUrlOf, mapNestStatus, submissionToFeedItem } from "@/lib/nest/mappers";
+import { getSession } from "@/lib/auth";
+import { nestPublicProfile } from "@/lib/nest/client";
+import { coverUrlOf, mapNestStatus, safeApi, submissionToFeedItem } from "@/lib/nest/mappers";
 import { findSubmissionsByCreator } from "@/lib/nest/queries";
 import {
   breadcrumbJsonLd,
@@ -18,9 +22,8 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { id } = await params;
-  const published = await findSubmissionsByCreator(id);
-  const creator = published[0]?.creator;
-  if (!creator) {
+  const profile = await safeApi(nestPublicProfile(id), null);
+  if (!profile || profile.role !== "CREATOR") {
     return buildMetadata({
       title: "Creator not found",
       description: "This creator profile is unavailable.",
@@ -30,14 +33,14 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   }
 
   return buildMetadata({
-    title: creator.name,
+    title: profile.name,
     description: metaDescription(
-      `${creator.name} on Graveyard. Rejected and shelved creative work that should have gone LIVE.`,
+      `${profile.name} on Graveyard. Rejected and shelved creative work that should have gone LIVE.`,
     ),
-    path: `/creators/${creator.id}`,
-    image: creator.avatarUrl || undefined,
+    path: `/creators/${profile.id}`,
+    image: profile.avatarUrl || undefined,
     type: "profile",
-    keywords: [creator.name, creator.agencyName || "", "Graveyard creator", "creative awards"].filter(
+    keywords: [profile.name, profile.agencyName || "", "Graveyard creator", "creative awards"].filter(
       Boolean,
     ),
   });
@@ -45,11 +48,16 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function CreatorProfilePage({ params }: Params) {
   const { id } = await params;
-  const published = await findSubmissionsByCreator(id);
-  const creator = published[0]?.creator;
-  if (!creator) notFound();
+  const [profile, published, session] = await Promise.all([
+    safeApi(nestPublicProfile(id), null),
+    findSubmissionsByCreator(id),
+    getSession(),
+  ]);
 
-  const voteTotal = published.reduce((sum, s) => sum + s.likeCount, 0);
+  if (!profile || profile.role !== "CREATOR") notFound();
+
+  const memberOfAgency = published[0]?.creator.memberOfAgency ?? null;
+  const voteTotal = published.reduce((sum, s) => sum + (s.voteScore ?? s.likeCount), 0);
   const awards = toAwardEntries(
     published.map((s) => ({
       id: s.slug,
@@ -62,62 +70,78 @@ export default async function CreatorProfilePage({ params }: Params) {
     })),
   );
   const liveCount = awards.filter((a) => a.status === "winner").length;
-
   const items: FeedItem[] = published.map((piece) => submissionToFeedItem(piece));
+  const isSelf = session?.id === profile.id;
 
   return (
     <YardPage>
       <JsonLd
         data={[
           profileJsonLd({
-            name: creator.name,
-            path: `/creators/${creator.id}`,
-            image: creator.avatarUrl,
+            name: profile.name,
+            path: `/creators/${profile.id}`,
+            image: profile.avatarUrl,
             type: "Person",
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },
-            { name: creator.name, path: `/creators/${creator.id}` },
+            { name: profile.name, path: `/creators/${profile.id}` },
           ]),
         ]}
       />
       <YardHeader
         tone="night"
         eyebrow="Creator"
-        title={creator.name}
-        description="Work that should have gone LIVE."
+        title={profile.name}
+        description={
+          memberOfAgency
+            ? `Member of ${memberOfAgency.agencyName || memberOfAgency.name}. Work that should have gone LIVE.`
+            : profile.bio || "Work that should have gone LIVE."
+        }
         actions={
-          creator.agencyName ? (
-            <Link
-              href={`/agencies/${encodeURIComponent(creator.agencyName)}`}
-              className="btn btn-primary"
-            >
-              {creator.agencyName}
-            </Link>
-          ) : undefined
+          <div className="flex flex-wrap gap-2">
+            <ShareLinkButton
+              path={`/creators/${profile.id}`}
+              label="Share profile"
+              className="btn border border-white/45 bg-white/10 text-white hover:bg-white/18"
+            />
+            {!isSelf ? (
+              <FollowButton
+                userId={profile.id}
+                initialFollowing={profile.viewerFollowing}
+                initialFollowerCount={profile.followerCount}
+              />
+            ) : null}
+            {memberOfAgency ? (
+              <Link href={`/agencies/${memberOfAgency.id}`} className="btn btn-outline">
+                Member of {memberOfAgency.agencyName || memberOfAgency.name}
+              </Link>
+            ) : null}
+          </div>
         }
       />
 
       <YardContainer>
         <div className="mb-10 flex flex-wrap items-center gap-6">
           <div className="h-24 w-24 overflow-hidden rounded-full bg-ink">
-            {creator.avatarUrl ? (
+            {profile.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={creator.avatarUrl}
-                alt={`${creator.name} avatar`}
+                src={profile.avatarUrl}
+                alt={`${profile.name} avatar`}
                 className="h-full w-full object-cover"
               />
             ) : (
               <span className="flex h-full w-full items-center justify-center text-2xl font-bold text-white">
-                {creator.name.slice(0, 1).toUpperCase()}
+                {profile.name.slice(0, 1).toUpperCase()}
               </span>
             )}
           </div>
-          <div className="grid flex-1 gap-3 sm:grid-cols-3">
+          <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <YardStat label="LIVE awards" value={liveCount} accent />
             <YardStat label="Published" value={published.length} />
             <YardStat label="Votes" value={voteTotal} />
+            <YardStat label="Followers" value={profile.followerCount} />
           </div>
         </div>
 

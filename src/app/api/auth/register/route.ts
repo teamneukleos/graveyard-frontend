@@ -2,23 +2,37 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { NestApiError, nestRegister } from "@/lib/nest/client";
 
-const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  name: z.string().min(1),
-  agencyName: z.string().optional(),
-});
+const registerSchema = z
+  .object({
+    email: z.string().email(),
+    password: z.string().min(8),
+    name: z.string().min(1),
+    role: z.enum(["CREATOR", "AGENCY"]).optional(),
+    agencyName: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.role === "AGENCY" && !data.agencyName?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Agency name is required",
+        path: ["agencyName"],
+      });
+    }
+  });
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const data = registerSchema.parse(body);
+    const role = data.role === "AGENCY" ? "AGENCY" : "CREATOR";
+    const agencyName = data.agencyName?.trim() || undefined;
 
     const result = await nestRegister({
       email: data.email,
       password: data.password,
-      name: data.name,
-      agencyName: data.agencyName?.trim() || undefined,
+      name: role === "AGENCY" ? agencyName! : data.name,
+      role,
+      agencyName,
     });
 
     // Do not set a session — user must verify email, then log in.

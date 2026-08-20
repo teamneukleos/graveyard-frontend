@@ -5,15 +5,18 @@ import { googleAuthStartUrl } from "@/lib/nest/config";
 export function GoogleAuthButton({
   label = "Continue with Google",
   nextPath,
+  role,
   href,
 }: {
   label?: string;
   /** Frontend path to return to after Google sign-in (e.g. /portal). */
   nextPath?: string | null;
+  /** Signup intent for new Google accounts. */
+  role?: "CREATOR" | "AGENCY" | null;
   /** Override; defaults to Nest `/auth/google` on the API host. */
   href?: string;
 }) {
-  const target = href ?? googleAuthStartUrl(nextPath);
+  const target = href ?? googleAuthStartUrl(nextPath, role);
   return (
     <a href={target} className="btn btn-outline w-full">
       <GoogleIcon />

@@ -1,4 +1,11 @@
-export type NestRole = "CREATOR" | "JUDGE" | "ADMIN" | "SUPER_ADMIN";
+export type NestRole = "CREATOR" | "AGENCY" | "JUDGE" | "ADMIN" | "SUPER_ADMIN";
+
+export type NestMemberAgency = {
+  id: string;
+  name: string;
+  agencyName: string | null;
+  avatarUrl?: string | null;
+};
 
 export type NestUser = {
   id: string;
@@ -10,6 +17,8 @@ export type NestUser = {
   avatarUrl: string | null;
   emailVerified: boolean;
   emailVerifiedAt: string | null;
+  memberOfAgency: NestMemberAgency | null;
+  agencyOnboardingRequired?: boolean;
   createdAt: string;
 };
 
@@ -57,6 +66,7 @@ export type NestSubmission = {
   rightsAttested: boolean;
   status: NestSubmissionStatus;
   likeCount: number;
+  voteScore: number;
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -66,6 +76,8 @@ export type NestSubmission = {
     name: string;
     agencyName: string | null;
     avatarUrl: string | null;
+    role?: NestRole;
+    memberOfAgency?: NestMemberAgency | null;
   };
   teamMembers: Array<{
     id: string;
@@ -92,11 +104,13 @@ export type NestWorksLeaderboard = {
     title: string;
     slug: string;
     likeCount: number;
+    voteScore: number;
     coverUrl: string | null;
     categorySlug: string;
     creatorId: string;
     creatorName: string;
     agencyName: string | null;
+    creatorRole?: NestRole;
   }>;
 };
 
@@ -151,6 +165,13 @@ export type NestFeaturedItem = {
   };
 };
 
+export type NestAwardCycleJudge = {
+  userId: string;
+  name: string;
+  email: string;
+  assignedAt: string;
+};
+
 export type NestAwardCycle = {
   id: string;
   name: string;
@@ -161,6 +182,19 @@ export type NestAwardCycle = {
   status: "UPCOMING" | "JUDGING" | "RESULTS_PUBLISHED" | "CLOSED";
   judgeCount?: number;
   scoreCount?: number;
+  judges?: NestAwardCycleJudge[];
+};
+
+export type NestAwardEntry = {
+  id: string;
+  awardCycleId: string;
+  submissionId: string;
+  enteredById: string;
+  createdAt: string;
+  cycleName?: string;
+  cycleYear?: number;
+  cycleStatus?: NestAwardCycle["status"];
+  submissionTitle?: string;
 };
 
 export type NestJudgeQueueItem = {
@@ -179,6 +213,25 @@ export type NestLikeResponse = {
   submissionId: string;
   liked: boolean;
   likeCount: number;
+  voteScore: number;
+};
+
+export type NestPublicProfile = {
+  id: string;
+  name: string;
+  role: NestRole;
+  agencyName: string | null;
+  bio: string | null;
+  avatarUrl: string | null;
+  followerCount: number;
+  followingCount: number;
+  viewerFollowing: boolean;
+};
+
+export type NestFollowResponse = {
+  userId: string;
+  following: boolean;
+  followerCount: number;
 };
 
 export type NestEventType = "MEETUP" | "SALON" | "SCREENING" | "WORKSHOP";

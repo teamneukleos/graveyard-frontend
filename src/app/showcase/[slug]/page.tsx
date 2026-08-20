@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
 import { ShowcaseGallery } from "@/components/ShowcaseGallery";
+import { ShareLinkButton } from "@/components/ShareLinkButton";
 import { VoteButton } from "@/components/VoteButton";
 import { YardCard, YardPage } from "@/components/yard/YardPage";
 import { NestApiError, nestListSubmissions, nestSubmissionBySlug } from "@/lib/nest/client";
@@ -139,11 +140,14 @@ export default async function ShowcaseDetailPage({ params }: Params) {
               {piece.yearCreated}
             </span>
           </div>
-          <VoteButton
-            submissionId={piece.id}
-            initialVoted={false}
-            initialCount={piece.likeCount}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <ShareLinkButton path={`/showcase/${piece.slug}`} label="Share project" />
+            <VoteButton
+              submissionId={piece.id}
+              initialVoted={false}
+              initialCount={piece.likeCount}
+            />
+          </div>
         </div>
 
         <h1 className="mt-6 font-display text-[clamp(2.6rem,7vw,5rem)] leading-[0.95] tracking-tight text-ink">
@@ -160,7 +164,8 @@ export default async function ShowcaseDetailPage({ params }: Params) {
           <div>
             <p className="plot-label">Public like</p>
             <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-mute">
-              Log in to like work that should have gone LIVE.
+              Like work that should have gone LIVE. Visitors who aren’t signed in will be asked to
+              create an account or sign in first.
             </p>
           </div>
           <div className="mt-4 flex shrink-0 items-center gap-4 md:mt-0">

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { setAccessToken } from "@/lib/auth";
 import { NestApiError, nestLogin } from "@/lib/nest/client";
-import { homePathForRole, mapNestRole } from "@/lib/nest/roles";
+import { mapNestRole, postAuthPath } from "@/lib/nest/roles";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -28,8 +28,9 @@ export async function POST(request: Request) {
         agencyName: result.user.agencyName,
         avatarUrl: result.user.avatarUrl,
         emailVerified: Boolean(result.user.emailVerified),
+        agencyOnboardingRequired: Boolean(result.user.agencyOnboardingRequired),
       },
-      redirectTo: homePathForRole(role),
+      redirectTo: postAuthPath(result.user),
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

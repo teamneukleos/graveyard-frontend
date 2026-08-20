@@ -93,7 +93,7 @@ export async function GET(_request: Request, { params }: Params) {
 }
 
 export async function PATCH(request: Request, { params }: Params) {
-  const session = await requireSession(["creator", "admin"]);
+  const session = await requireSession(["creator", "agency", "admin"]);
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -163,7 +163,7 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
-  const session = await requireSession(["creator", "admin"]);
+  const session = await requireSession(["creator", "agency", "admin"]);
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
