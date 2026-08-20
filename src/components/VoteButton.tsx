@@ -4,6 +4,25 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AuthPromptModal } from "@/components/AuthPromptModal";
 
+function HeartIcon({ filled, className = "" }: { filled: boolean; className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      width="1em"
+      height="1em"
+      aria-hidden="true"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={filled ? 0 : 2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M19.5 12.57 12 20l-7.5-7.43A5 5 0 0 1 12 5.1a5 5 0 0 1 7.5 7.47Z" />
+    </svg>
+  );
+}
+
 export function VoteButton({
   submissionId,
   initialVoted,
@@ -24,6 +43,7 @@ export function VoteButton({
   const [authOpen, setAuthOpen] = useState(false);
   const [returnPath, setReturnPath] = useState("/");
   const [pending, startTransition] = useTransition();
+  const [pop, setPop] = useState(false);
 
   const closeAuth = useCallback(() => setAuthOpen(false), []);
 
@@ -60,8 +80,13 @@ export function VoteButton({
       return;
     }
 
-    setVoted(Boolean(data.voted));
+    const nextVoted = Boolean(data.voted);
+    setVoted(nextVoted);
     if (typeof data.count === "number") setCount(data.count);
+    if (nextVoted) {
+      setPop(true);
+      window.setTimeout(() => setPop(false), 420);
+    }
     startTransition(() => router.refresh());
   }
 
@@ -71,17 +96,19 @@ export function VoteButton({
         type="button"
         onClick={toggle}
         disabled={pending}
-        className={`inline-flex items-center gap-1 rounded-full text-[12px] font-semibold transition-colors ${
-          compact ? "px-2.5 py-1" : "px-3.5 py-1.5"
-        } ${
-          voted ? "bg-ink text-white" : "bg-soft text-ink hover:bg-[#ebebeb]"
-        } disabled:opacity-60`}
+        className={`vote-btn ${compact ? "vote-btn--compact" : "vote-btn--full"} ${
+          voted ? "vote-btn--on" : "vote-btn--off"
+        } ${pop ? "vote-btn--pop" : ""}`}
         aria-pressed={voted}
         aria-label={voted ? "Remove like" : "Like"}
       >
-        <span aria-hidden="true">{voted ? "▲" : "△"}</span>
-        <span className="tabular-nums">{count}</span>
-        {!compact ? <span className="ml-0.5">{voted ? "Liked" : "Like"}</span> : null}
+        <span className={`vote-btn__icon ${pop ? "vote-btn__icon--pop" : ""}`}>
+          <HeartIcon filled={voted} />
+        </span>
+        <span className="vote-btn__count tabular-nums">{count}</span>
+        {!compact ? (
+          <span className="vote-btn__label">{voted ? "Liked" : "Like"}</span>
+        ) : null}
       </button>
 
       {error ? (

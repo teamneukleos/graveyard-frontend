@@ -45,13 +45,12 @@ export function FeedCard({ item, index = 0 }: { item: FeedItem; index?: number }
           </span>
         ) : null}
 
-        <div className="absolute bottom-3 right-3 z-10 opacity-100 transition duration-300 sm:translate-y-1 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
+        <div className="absolute bottom-3 right-3 z-10">
           <VoteButton
             submissionId={likeId}
             initialVoted={Boolean(item.voted)}
             initialCount={voteCount}
             compact
-            className="shadow-lg"
           />
         </div>
       </div>
