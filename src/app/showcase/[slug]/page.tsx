@@ -160,11 +160,11 @@ export default async function ShowcaseDetailPage({ params }: Params) {
           {teamCredits ? ` · ${teamCredits}` : ""} · {piece.submitterType.toLowerCase()}
         </p>
 
-        <div className="mt-10 rounded-[28px] border border-line bg-white/90 p-5 md:flex md:items-center md:justify-between md:gap-6 md:p-6">
+        <div className="mt-10 rounded-[28px] border border-accent/25 bg-gradient-to-br from-white via-white to-[#fff4eb] p-5 md:flex md:items-center md:justify-between md:gap-6 md:p-6">
           <div>
-            <p className="plot-label">Public like</p>
+            <p className="plot-label text-accent">Public like</p>
             <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-mute">
-              Like work that should have gone LIVE. Visitors who aren’t signed in will be asked to
+              Tap like if this should have gone LIVE. Visitors who aren’t signed in will be asked to
               create an account or sign in first.
             </p>
           </div>
