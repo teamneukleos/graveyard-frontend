@@ -6,6 +6,7 @@ import { ShowcaseGallery } from "@/components/ShowcaseGallery";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
 import { VoteButton } from "@/components/VoteButton";
 import { YardCard, YardPage } from "@/components/yard/YardPage";
+import { resolveAssetUrl } from "@/lib/asset-url";
 import { NestApiError, nestListSubmissions, nestSubmissionBySlug } from "@/lib/nest/client";
 import { coverUrlOf, mapNestStatus, safeApi } from "@/lib/nest/mappers";
 import {
@@ -76,7 +77,7 @@ export default async function ShowcaseDetailPage({ params }: Params) {
 
   const galleryAssets = piece.assets.map((a) => ({
     id: a.id,
-    url: a.url,
+    url: resolveAssetUrl(a.url) || a.url,
     originalName: a.fileName || "asset",
     mimeType: a.mimeType || "application/octet-stream",
   }));

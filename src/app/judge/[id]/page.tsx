@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { JudgeReviewForm } from "@/components/JudgeReviewForm";
 import { StatusPill } from "@/components/StatusPill";
 import { YardCard, YardContainer, YardHeader, YardPage } from "@/components/yard/YardPage";
+import { resolveAssetUrl } from "@/lib/asset-url";
 import { getAccessToken, requireSession } from "@/lib/auth";
 import { NestApiError, nestAwardCycles, nestAwardQueue, nestSubmissionBySlug } from "@/lib/nest/client";
 import { coverUrlOf, safeApi } from "@/lib/nest/mappers";
@@ -86,7 +87,7 @@ export default async function JudgeDetailPage({ params, searchParams }: Params) 
               <li key={asset.id}>
                 <a
                   className="font-semibold text-accent underline underline-offset-4"
-                  href={asset.url}
+                  href={resolveAssetUrl(asset.url) || asset.url}
                   target="_blank"
                   rel="noreferrer"
                 >

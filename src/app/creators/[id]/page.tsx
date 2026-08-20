@@ -8,6 +8,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
 import { YardContainer, YardEmpty, YardHeader, YardPage, YardStat } from "@/components/yard/YardPage";
 import { getSession } from "@/lib/auth";
+import { resolveAssetUrl } from "@/lib/asset-url";
 import { nestPublicProfile } from "@/lib/nest/client";
 import { coverUrlOf, mapNestStatus, safeApi, submissionToFeedItem } from "@/lib/nest/mappers";
 import { findSubmissionsByCreator } from "@/lib/nest/queries";
@@ -127,7 +128,7 @@ export default async function CreatorProfilePage({ params }: Params) {
             {profile.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={profile.avatarUrl}
+                src={resolveAssetUrl(profile.avatarUrl) || profile.avatarUrl}
                 alt={`${profile.name} avatar`}
                 className="h-full w-full object-cover"
               />

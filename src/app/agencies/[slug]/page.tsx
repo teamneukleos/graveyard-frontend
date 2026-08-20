@@ -6,6 +6,7 @@ import { FollowButton } from "@/components/FollowButton";
 import { JsonLd } from "@/components/JsonLd";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
 import { YardContainer, YardEmpty, YardHeader, YardPage, YardStat } from "@/components/yard/YardPage";
+import { resolveAssetUrl } from "@/lib/asset-url";
 import { getSession } from "@/lib/auth";
 import { nestPublicProfile } from "@/lib/nest/client";
 import { coverUrlOf, mapNestStatus, safeApi, submissionToFeedItem } from "@/lib/nest/mappers";
@@ -89,9 +90,11 @@ export default async function AgencyProfilePage({ params }: Params) {
 
   const agencyPath = `/agencies/${agencyId}`;
   const avatar =
-    profile?.avatarUrl ||
-    agencyWork.find((s) => s.creator.avatarUrl)?.creator.avatarUrl ||
-    null;
+    resolveAssetUrl(
+      profile?.avatarUrl ||
+        agencyWork.find((s) => s.creator.avatarUrl)?.creator.avatarUrl ||
+        null,
+    );
   const bio = profile?.bio || `${agencyName} on Graveyard.`;
 
   const awards = toAwardEntries(

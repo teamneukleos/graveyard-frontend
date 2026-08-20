@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveAssetUrl } from "@/lib/asset-url";
 import { getAccessToken, requireSession } from "@/lib/auth";
 import { NestApiError, nestUploadAsset } from "@/lib/nest/client";
 
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
           id: asset.id ?? crypto.randomUUID(),
           originalName: file.name,
           filename: asset.fileName || file.name,
-          url: asset.url ?? null,
+          url: resolveAssetUrl(asset.url ?? null),
           mimeType: asset.mimeType || file.type || "application/octet-stream",
         },
       },

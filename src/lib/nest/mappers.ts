@@ -1,9 +1,10 @@
 import type { FeedItem } from "@/components/FeedCard";
+import { resolveAssetUrl } from "@/lib/asset-url";
 import type { NestSubmission, NestSubmissionStatus } from "./types";
 
 export function coverUrlOf(submission: NestSubmission) {
   const cover = submission.assets.find((asset) => asset.isCover) ?? submission.assets[0];
-  return cover?.url ?? null;
+  return resolveAssetUrl(cover?.url ?? null);
 }
 
 export function mapNestStatus(status: NestSubmissionStatus): string {

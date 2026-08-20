@@ -1,5 +1,6 @@
 import { decodeJwt, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { resolveAssetUrl } from "./asset-url";
 import type { Role } from "./constants";
 import { nestMe } from "./nest/client";
 import { mapNestRole } from "./nest/roles";
@@ -39,7 +40,7 @@ function toSessionUser(user: NestUser): SessionUser {
     nestRole: user.role,
     agencyName: user.agencyName ?? null,
     bio: user.bio ?? null,
-    avatarUrl: user.avatarUrl ?? null,
+    avatarUrl: resolveAssetUrl(user.avatarUrl) ?? null,
     emailVerified: Boolean(user.emailVerified),
     memberOfAgency: user.memberOfAgency ?? null,
     agencyOnboardingRequired: Boolean(
