@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { GraveyardLink } from "@/components/GraveyardLink";
 import { notFound, redirect } from "next/navigation";
 import { EnterForAward } from "@/components/EnterForAward";
 import { ShareLinkButton } from "@/components/ShareLinkButton";
@@ -66,18 +66,18 @@ export default async function SubmissionDetailPage({ params, searchParams }: Par
             <StatusPill status={status} />
             {submission.status === "PUBLISHED" ? (
               <>
-                <Link href={`/showcase/${submission.slug}`} className="btn btn-outline">
+                <GraveyardLink href={`/showcase/${submission.slug}`} className="btn btn-outline">
                   Public page
-                </Link>
+                </GraveyardLink>
                 <ShareLinkButton
                   path={`/showcase/${submission.slug}`}
                   label="Copy project link"
                 />
               </>
             ) : null}
-            <Link href="/portal" className="btn btn-ghost">
+            <GraveyardLink href="/portal" className="btn btn-ghost">
               Portal
-            </Link>
+            </GraveyardLink>
           </>
         }
       />

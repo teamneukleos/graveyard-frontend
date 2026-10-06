@@ -1,4 +1,5 @@
-import Link from "next/link";
+
+import { GraveyardLink } from "@/components/GraveyardLink";
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { YardContainer, YardHeader, YardPage } from "@/components/yard/YardPage";
@@ -81,12 +82,12 @@ function Board({
         <h2 className="min-w-0 font-display text-[26px] tracking-tight text-ink sm:text-3xl">
           {title}
         </h2>
-        <Link
+        <GraveyardLink
           href={href}
           className="shrink-0 text-[12px] font-semibold text-accent underline underline-offset-4 sm:text-[13px]"
         >
           See full board
-        </Link>
+        </GraveyardLink>
       </div>
       <ol className="min-w-0">
         {rows.map((row, i) => (
@@ -95,12 +96,12 @@ function Board({
               {String(i + 1).padStart(2, "0")}
             </span>
             <div className="min-w-0">
-              <Link
+              <GraveyardLink
                 href={row.href}
                 className="block truncate text-[14px] font-semibold text-ink hover:underline sm:text-[15px]"
               >
                 {row.name}
-              </Link>
+              </GraveyardLink>
               <p className="truncate text-[11px] text-mute sm:text-[12px]">{row.meta}</p>
             </div>
             <div className="board-votes shrink-0">

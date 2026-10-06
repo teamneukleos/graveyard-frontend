@@ -7,6 +7,7 @@
   --mute: #5c5c5c;
   --line: #e0e0e0;
   --soft: #f4f4f4;
+  --graveyard-yellow: #f5c542;
   --signal: #ff6a00;
   --night: #0a0a0a;
   --accent: #ff6a00;
@@ -34,6 +35,7 @@
 }
 
 @theme inline {
+  --color-graveyard-yellow: var(--graveyard-yellow);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-void: var(--void);

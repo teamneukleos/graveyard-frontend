@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { GraveyardLink } from "../GraveyardLink";  
 
 export type HeroFeatured = {
   id: string;
@@ -26,16 +26,16 @@ export function HomeHero({ featured }: { featured: HeroFeatured | null }) {
             <a href="#work" className="btn btn-primary !px-5 !py-2.5 !text-[13px]">
               Browse
             </a>
-            <Link href="/register" className="btn btn-ghost !px-5 !py-2.5 !text-[13px]">
+            <GraveyardLink href="/register" className="btn btn-ghost !px-5 !py-2.5 !text-[13px]">
               Submit work
-            </Link>
+            </GraveyardLink>
             {featured ? (
-              <Link
+              <GraveyardLink
                 href={`/showcase/${featured.id}`}
                 className="btn btn-ghost !px-5 !py-2.5 !text-[13px]"
               >
                 Featured
-              </Link>
+              </GraveyardLink>
             ) : null}
           </div>
         </div>

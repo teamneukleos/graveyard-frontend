@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { GraveyardLink } from "@/components/GraveyardLink";
 import { formatEventWhen, type EventWithAvailability } from "@/lib/events";
 
 export function EventsSection({
@@ -16,16 +16,16 @@ export function EventsSection({
         <div className="mb-6 flex items-end justify-between gap-4">
           <h2 className="text-[22px] font-bold tracking-tight text-ink">Events</h2>
           {showViewAll ? (
-            <Link href="/events" className="text-[13px] font-semibold text-mute hover:text-ink">
+            <GraveyardLink href="/events" className="text-[13px] font-semibold text-mute hover:text-ink">
               View all
-            </Link>
+            </GraveyardLink>
           ) : null}
         </div>
 
         <ul className="divide-y divide-line border-y border-line">
           {events.map((event) => (
             <li key={event.id}>
-              <Link
+              <GraveyardLink
                 href={`/events#${event.id}`}
                 className="flex flex-col gap-1 py-4 transition-colors hover:bg-soft/60 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6 sm:px-1"
               >
@@ -36,7 +36,7 @@ export function EventsSection({
                 <p className="shrink-0 text-[13px] text-mute">
                   {formatEventWhen(event.startsAt)} · {event.city}
                 </p>
-              </Link>
+              </GraveyardLink>
             </li>
           ))}
         </ul>

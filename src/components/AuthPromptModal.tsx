@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId } from "react";
-import Link from "next/link";
+import { GraveyardLink } from "@/components/GraveyardLink";
 import { GoogleAuthButton } from "@/components/AuthShell";
 
 export function AuthPromptModal({
@@ -66,12 +66,12 @@ export function AuthPromptModal({
           </p>
 
           <div className="mt-6 space-y-3">
-            <Link href={`/login${nextQuery}`} className="btn btn-primary w-full">
+            <GraveyardLink href={`/login${nextQuery}`} className="btn btn-primary w-full">
               Sign in
-            </Link>
-            <Link href={`/register${nextQuery}`} className="btn btn-outline w-full">
+            </GraveyardLink>
+            <GraveyardLink href={`/register${nextQuery}`} className="btn btn-outline w-full">
               Create account
-            </Link>
+            </GraveyardLink>
             <GoogleAuthButton nextPath={path} label="Continue with Google" />
           </div>
 

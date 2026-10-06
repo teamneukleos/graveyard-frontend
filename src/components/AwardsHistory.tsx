@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { GraveyardLink } from "@/components/GraveyardLink";
 import { resolveAssetUrl } from "@/lib/asset-url";
 
 export type AwardEntry = {
@@ -86,7 +86,7 @@ export function AwardsHistory({
           <ul className="space-y-3">
             {rows.map((award) => (
               <li key={award.id}>
-                <Link
+                <GraveyardLink
                   href={`/showcase/${award.id}`}
                   className="group flex items-center gap-4 rounded-[20px] border border-line bg-white/90 p-3 transition hover:border-accent/40 md:p-4"
                 >
@@ -118,7 +118,7 @@ export function AwardsHistory({
                   <span className="hidden shrink-0 text-[13px] font-semibold text-mute sm:inline">
                     {year}
                   </span>
-                </Link>
+                </GraveyardLink>
               </li>
             ))}
           </ul>

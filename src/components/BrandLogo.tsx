@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { GraveyardLink } from "@/components/GraveyardLink";
 
 type BrandLogoProps = {
   href?: string | null;
@@ -41,8 +41,8 @@ export function BrandLogo({
   if (!href) return img;
 
   return (
-    <Link href={href} className="inline-flex shrink-0 items-center" aria-label="Graveyard home">
+    <GraveyardLink href={href} className="inline-flex shrink-0 items-center" aria-label="Graveyard home">
       {img}
-    </Link>
+    </GraveyardLink>
   );
 }

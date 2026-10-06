@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { GraveyardLink } from "./GraveyardLink";
 
 type PaginationProps = {
   page: number;
@@ -93,12 +93,12 @@ function PageLink({
     return <span className="rounded-full px-3 py-1.5 text-[13px] text-[#c4c4c4]">{label}</span>;
   }
   return (
-    <Link
+    <GraveyardLink
       href={href}
       className="rounded-full px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-paper"
     >
       {label}
-    </Link>
+    </GraveyardLink>
   );
 }
 
@@ -112,7 +112,7 @@ function PageNumber({
   children: React.ReactNode;
 }) {
   return (
-    <Link
+    <GraveyardLink
       href={href}
       aria-current={active ? "page" : undefined}
       className={`min-w-8 rounded-full px-3 py-1.5 text-center text-[13px] font-medium transition-colors ${
@@ -120,6 +120,6 @@ function PageNumber({
       }`}
     >
       {children}
-    </Link>
+    </GraveyardLink>
   );
 }

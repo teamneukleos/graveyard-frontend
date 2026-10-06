@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { GraveyardLink } from "./GraveyardLink";
 import type { SessionUser } from "@/lib/auth";
 import { BrandLogo } from "./BrandLogo";
 import { LogoutButton } from "./LogoutButton";
@@ -17,28 +17,37 @@ export function SiteNav({ user }: { user: SessionUser | null }) {
         <BrandLogo size="nav" tone="light" />
 
         <nav className="hidden items-center gap-5 text-[13px] font-semibold text-ink md:flex">
-          <Link href="/" className="hover:opacity-50">
+          <GraveyardLink href="/" className="hover:opacity-50">
             Explore
-          </Link>
-          <Link href="/showcase" className="hover:opacity-50">
+          </GraveyardLink>
+
+          <GraveyardLink href="/showcase" className="hover:opacity-50">
             Showcase
-          </Link>
-          <Link href="/categories" className="hover:opacity-50">
+          </GraveyardLink>
+
+          <GraveyardLink href="/categories" className="hover:opacity-50">
             Categories
-          </Link>
-          <Link href="/leaderboards" className="hover:opacity-50">
+          </GraveyardLink>
+
+          <GraveyardLink href="/leaderboards" className="hover:opacity-50">
             Leaderboards
-          </Link>
-          <Link href="/events" className="hover:opacity-50">
+          </GraveyardLink>
+
+          <GraveyardLink href="/events" className="hover:opacity-50">
             Events
-          </Link>
+          </GraveyardLink>
         </nav>
 
-        <form action="/" method="get" className="mx-auto hidden min-w-0 flex-1 max-w-sm lg:block">
+        <form
+          action="/"
+          method="get"
+          className="mx-auto hidden min-w-0 max-w-sm flex-1 lg:block"
+        >
           <label className="relative block">
             <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mute">
               <SearchIcon />
             </span>
+
             <input
               name="q"
               placeholder="Search the yard"
@@ -50,28 +59,41 @@ export function SiteNav({ user }: { user: SessionUser | null }) {
         <div className="ml-auto flex items-center gap-2 text-[13px] font-semibold">
           {user ? (
             <>
-              <Link
+              <GraveyardLink
                 href={portalHref}
                 className="hidden rounded-full bg-canvas px-3 py-1.5 text-ink hover:bg-accent hover:text-white sm:inline"
               >
-                {user.role === "admin" ? "Admin" : user.role === "judge" ? "Judge" : "Portal"}
-              </Link>
-              <Link href="/settings" className="hidden px-2 text-mute hover:text-ink sm:inline">
+                {user.role === "admin"
+                  ? "Admin"
+                  : user.role === "judge"
+                    ? "Judge"
+                    : "Portal"}
+              </GraveyardLink>
+
+              <GraveyardLink
+                href="/settings"
+                className="hidden px-2 text-mute hover:text-ink sm:inline"
+              >
                 Settings
-              </Link>
+              </GraveyardLink>
+
               <LogoutButton />
             </>
           ) : (
             <>
-              <Link href="/login" className="hidden px-2 text-mute hover:text-ink sm:inline">
+              <GraveyardLink
+                href="/login"
+                className="hidden px-2 text-mute hover:text-ink sm:inline"
+              >
                 Log in
-              </Link>
-              <Link
+              </GraveyardLink>
+
+              <GraveyardLink
                 href="/register"
                 className="rounded-full bg-accent px-3.5 py-1.5 text-[13px] font-bold text-white hover:brightness-95"
               >
                 Submit
-              </Link>
+              </GraveyardLink>
             </>
           )}
         </div>
@@ -82,9 +104,26 @@ export function SiteNav({ user }: { user: SessionUser | null }) {
 
 function SearchIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-      <path d="M20 20l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle
+        cx="11"
+        cy="11"
+        r="7"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M20 20l-3.5-3.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

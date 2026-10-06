@@ -5,6 +5,8 @@ import { JsonLd } from "@/components/JsonLd";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteNav } from "@/components/SiteNav";
 import { getSession } from "@/lib/auth";
+import { GraveyardLoadingProvider } from "@/components/GraveyardLoadingProvider";
+import SmoothScroll from "@/components/SmoothScroll";
 import {
   absoluteUrl,
   organizationJsonLd,
@@ -110,11 +112,16 @@ export default async function RootLayout({
       <body className="relative flex min-h-full flex-col antialiased">
         <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
         <GraveyardAtmosphere />
-        <div className="relative z-10 flex min-h-full flex-1 flex-col">
-          <SiteNav user={user} />
-          <div className="flex flex-1 flex-col">{children}</div>
-          <SiteFooter />
-        </div>
+
+        <SmoothScroll>
+          <GraveyardLoadingProvider>
+            <div className="relative z-10 flex min-h-full flex-1 flex-col">
+              <SiteNav user={user} />
+              <div className="flex flex-1 flex-col">{children}</div>
+              <SiteFooter />
+            </div>
+          </GraveyardLoadingProvider>
+        </SmoothScroll>
       </body>
     </html>
   );

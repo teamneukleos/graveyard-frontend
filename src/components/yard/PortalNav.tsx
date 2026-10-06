@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { GraveyardLink } from "@/components/GraveyardLink";
 import { usePathname } from "next/navigation";
 
 export type PortalNavItem = {
@@ -24,7 +24,7 @@ export function PortalNav({ items }: { items: PortalNavItem[] }) {
         {items.map((item) => {
           const active = isActivePath(pathname, item.href);
           return (
-            <Link
+            <GraveyardLink
               key={item.href}
               href={item.href}
               className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
@@ -32,7 +32,7 @@ export function PortalNav({ items }: { items: PortalNavItem[] }) {
               }`}
             >
               {item.label}
-            </Link>
+            </GraveyardLink>
           );
         })}
       </div>

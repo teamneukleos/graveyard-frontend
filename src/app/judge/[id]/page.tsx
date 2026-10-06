@@ -1,4 +1,5 @@
-import Link from "next/link";
+
+import { GraveyardLink } from "@/components/GraveyardLink";
 import { notFound, redirect } from "next/navigation";
 import { JudgeReviewForm } from "@/components/JudgeReviewForm";
 import { StatusPill } from "@/components/StatusPill";
@@ -54,9 +55,9 @@ export default async function JudgeDetailPage({ params, searchParams }: Params) 
         actions={
           <>
             <StatusPill status={queueItem?.scoredByMe ? "under_review" : "submitted"} />
-            <Link href="/judge" className="btn btn-ghost">
+            <GraveyardLink href="/judge" className="btn btn-ghost">
               Queue
-            </Link>
+            </GraveyardLink>
           </>
         }
       />
