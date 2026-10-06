@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { GraveyardLink } from "@/components/GraveyardLink";
 import { AdminSubmissionTable } from "@/components/AdminSubmissionTable";
 import {
   YardContainer,
@@ -33,7 +33,9 @@ export default async function AdminPage() {
       s.status !== "DRAFT" &&
       s.status !== "REJECTED" &&
       s.status !== "ARCHIVED",
-    showcaseYear: s.publishedAt ? new Date(s.publishedAt).getFullYear() : null,
+    showcaseYear: s.publishedAt
+      ? new Date(s.publishedAt).getFullYear()
+      : null,
     submitter: s.creator.agencyName || s.creator.name,
     avgScore: null as number | null,
   }));
@@ -46,12 +48,13 @@ export default async function AdminPage() {
         description="Manage submissions against the Nest API."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Link href="/admin/events" className="btn btn-ghost">
+            <GraveyardLink href="/admin/events" className="btn btn-ghost">
               Events
-            </Link>
-            <Link href="/admin/cycles" className="btn btn-ghost">
+            </GraveyardLink>
+
+            <GraveyardLink href="/admin/cycles" className="btn btn-ghost">
               Award cycles
-            </Link>
+            </GraveyardLink>
           </div>
         }
       />
@@ -59,11 +62,14 @@ export default async function AdminPage() {
       <YardContainer>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <YardStat label="Submissions" value={rows.length} />
+
           <YardStat
             label="Published"
             value={rows.filter((r) => r.published).length}
           />
+
           <YardStat label="Award cycles" value={cycles.length} />
+
           <YardStat
             label="Judging"
             value={cycles.filter((c) => c.status === "JUDGING").length}
@@ -72,7 +78,10 @@ export default async function AdminPage() {
         </div>
 
         <section className="mt-12">
-          <h2 className="font-display text-3xl tracking-tight text-ink">All submissions</h2>
+          <h2 className="font-display text-3xl tracking-tight text-ink">
+            All submissions
+          </h2>
+
           <div className="mt-4 overflow-hidden rounded-[24px] border border-line bg-white/90 p-4 md:p-6">
             <AdminSubmissionTable submissions={rows} />
           </div>

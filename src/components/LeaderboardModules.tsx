@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { GraveyardLink } from "@/components/GraveyardLink";
 import type { CategoryLeader, EntityLeader } from "@/lib/leaderboards";
 
 export function LeaderboardPreview({
@@ -29,14 +29,14 @@ export function LeaderboardPreview({
             {subtitle}
           </p>
         </div>
-        <Link
+        <GraveyardLink
           href={href}
           className={`shrink-0 text-[12px] font-semibold underline underline-offset-4 sm:text-[13px] ${
             dark ? "text-white" : "text-ink"
           }`}
         >
           Full board
-        </Link>
+        </GraveyardLink>
       </div>
       <ol className="min-w-0">
         {rows.slice(0, 5).map((row, i) => (
@@ -68,14 +68,14 @@ export function LeaderboardPreview({
               )}
             </span>
             <div className="min-w-0">
-              <Link
+              <GraveyardLink
                 href={row.href}
                 className={`block truncate text-[14px] font-semibold hover:underline sm:text-[15px] ${
                   dark ? "text-white" : "text-ink"
                 }`}
               >
                 {row.name}
-              </Link>
+              </GraveyardLink>
               <p className={`truncate text-[11px] sm:text-[12px] ${dark ? "text-white/45" : "text-mute"}`}>
                 {row.entries} {row.entries === 1 ? "grave" : "graves"}
               </p>
@@ -124,16 +124,16 @@ export function CategoryRail({
           </h3>
           <p className="mt-1 text-[12px] text-mute sm:text-[13px]">Top of the plot. Cast yours.</p>
         </div>
-        <Link
+        <GraveyardLink
           href={`/categories/${encodeURIComponent(category)}`}
           className="btn btn-ghost shrink-0 !py-2 !text-[12px]"
         >
           Vote
-        </Link>
+        </GraveyardLink>
       </div>
       <div className="category-scroll">
         {leaders.map((leader, i) => (
-          <Link
+          <GraveyardLink
             key={leader.submissionId}
             href={`/showcase/${leader.slug || leader.submissionId}`}
             className="category-tile group"
@@ -155,7 +155,7 @@ export function CategoryRail({
                 </span>
               </div>
             </div>
-          </Link>
+          </GraveyardLink>
         ))}
         {leaders.length === 0 ? (
           <p className="text-[13px] text-mute">Nothing buried here yet.</p>

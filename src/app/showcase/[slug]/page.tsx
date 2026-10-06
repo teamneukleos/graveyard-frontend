@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { GraveyardLink } from "@/components/GraveyardLink";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
@@ -111,9 +111,9 @@ export default async function ShowcaseDetailPage({ params }: Params) {
         ]}
       />
       <div className="mx-auto max-w-[1100px] px-4 py-8 md:px-6 md:py-12">
-        <Link href="/showcase" className="text-[13px] font-medium text-mute hover:text-ink">
+        <GraveyardLink href="/showcase" className="text-[13px] font-medium text-mute hover:text-ink">
           ← Back to showcase
-        </Link>
+        </GraveyardLink>
 
         <div className="mt-6">
           <ShowcaseGallery assets={galleryAssets} title={piece.title} />
@@ -121,12 +121,12 @@ export default async function ShowcaseDetailPage({ params }: Params) {
 
         <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2">
-            <Link
+            <GraveyardLink
               href={`/categories/${encodeURIComponent(piece.category.name)}`}
               className="rounded-full bg-canvas px-3 py-1 text-[12px] font-semibold text-ink hover:bg-accent hover:text-white"
             >
               {piece.category.name}
-            </Link>
+            </GraveyardLink>
             {status === "winner" ? (
               <span className="rounded-full bg-accent px-3 py-1 text-[12px] font-bold text-white">
                 Should have gone LIVE
@@ -155,9 +155,9 @@ export default async function ShowcaseDetailPage({ params }: Params) {
           {piece.title}
         </h1>
         <p className="mt-4 text-[15px] text-mute">
-          <Link href={profileHref} className="font-semibold text-ink underline underline-offset-4">
+          <GraveyardLink href={profileHref} className="font-semibold text-ink underline underline-offset-4">
             {creatorName}
-          </Link>
+          </GraveyardLink>
           {teamCredits ? ` · ${teamCredits}` : ""} · {piece.submitterType.toLowerCase()}
         </p>
 
@@ -242,16 +242,16 @@ export default async function ShowcaseDetailPage({ params }: Params) {
                   Related graves
                 </h2>
               </div>
-              <Link
+              <GraveyardLink
                 href={`/categories/${encodeURIComponent(piece.category.name)}`}
                 className="text-[13px] font-semibold text-mute hover:text-ink"
               >
                 See all
-              </Link>
+              </GraveyardLink>
             </div>
             <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
               {related.map((item, i) => (
-                <Link key={item.id} href={`/showcase/${item.slug}`} className="group block">
+                <GraveyardLink key={item.id} href={`/showcase/${item.slug}`} className="group block">
                   <div className="card-media aspect-[4/5] overflow-hidden rounded-[20px]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -266,7 +266,7 @@ export default async function ShowcaseDetailPage({ params }: Params) {
                   <p className="truncate text-[12px] text-mute">
                     {item.creator.agencyName || item.creator.name}
                   </p>
-                </Link>
+                </GraveyardLink>
               ))}
             </div>
           </div>

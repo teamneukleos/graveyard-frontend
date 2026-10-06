@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { GraveyardLink } from "./GraveyardLink";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export type TrendingItem = {
@@ -241,7 +241,7 @@ export function TrendingRail({
           className={`trending-track ${dragging ? "is-dragging" : ""}`}
         >
           {items.map((piece, i) => (
-            <Link
+            <GraveyardLink
               key={piece.submissionId}
               href={`/showcase/${piece.slug || piece.submissionId}`}
               data-trend-card
@@ -275,7 +275,7 @@ export function TrendingRail({
                   {piece.category}
                 </p>
               </div>
-            </Link>
+            </GraveyardLink>
           ))}
         </div>
       </div>

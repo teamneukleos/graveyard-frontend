@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { GraveyardLink } from "@/components/GraveyardLink";
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { YardContainer, YardHeader, YardPage } from "@/components/yard/YardPage";
@@ -31,9 +31,9 @@ export default async function CreatorsLeaderboardPage() {
         title="Creator board"
         description="Ranked by public votes this week. No login needed to cast yours."
         actions={
-          <Link href="/leaderboards" className="btn btn-ghost">
+          <GraveyardLink href="/leaderboards" className="btn btn-ghost">
             All boards
-          </Link>
+          </GraveyardLink>
         }
       />
       <YardContainer narrow>
@@ -61,12 +61,12 @@ export default async function CreatorsLeaderboardPage() {
                 )}
               </span>
               <div className="min-w-0">
-                <Link
+                <GraveyardLink
                   href={row.href}
                   className="block truncate text-[14px] font-semibold text-ink hover:underline sm:text-[15px]"
                 >
                   {row.name}
-                </Link>
+                </GraveyardLink>
                 <p className="truncate text-[11px] text-mute sm:text-[12px]">
                   {row.entries} published {row.entries === 1 ? "grave" : "graves"}
                 </p>

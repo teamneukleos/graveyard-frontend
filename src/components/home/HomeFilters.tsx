@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { GraveyardLink } from "../GraveyardLink";
 
 export function HomeFilters({
   categories,
@@ -32,7 +32,7 @@ export function HomeFilters({
     <div className="filters-sticky">
       <div className="flex gap-2 overflow-x-auto pb-0.5">
         {items.map((item) => (
-          <Link
+          <GraveyardLink
             key={item.href + item.label}
             href={item.href}
             className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
@@ -40,7 +40,7 @@ export function HomeFilters({
             }`}
           >
             {item.label}
-          </Link>
+          </GraveyardLink>
         ))}
       </div>
     </div>

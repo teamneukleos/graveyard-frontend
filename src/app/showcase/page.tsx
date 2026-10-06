@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { GraveyardLink } from "@/components/GraveyardLink";
 import type { Metadata } from "next";
 import { FeedGrid, type FeedItem } from "@/components/FeedCard";
 import { JsonLd } from "@/components/JsonLd";
@@ -180,13 +180,13 @@ function Chip({
   children: React.ReactNode;
 }) {
   return (
-    <Link
+    <GraveyardLink
       href={href}
       className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
         active ? "bg-accent text-white" : "bg-white/90 text-ink hover:bg-canvas"
       }`}
     >
       {children}
-    </Link>
+    </GraveyardLink>
   );
 }
