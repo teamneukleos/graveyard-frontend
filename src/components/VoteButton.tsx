@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AuthPromptModal } from "@/components/AuthPromptModal";
 
 function HeartIcon({ filled, className = "" }: { filled: boolean; className?: string }) {
@@ -23,71 +22,116 @@ function HeartIcon({ filled, className = "" }: { filled: boolean; className?: st
   );
 }
 
+export type VoteChange = {
+  voted: boolean;
+  count: number;
+};
+
 export function VoteButton({
   submissionId,
   initialVoted,
   initialCount,
   compact = false,
   className = "",
+  onChange,
 }: {
   submissionId: string;
   initialVoted: boolean;
   initialCount: number;
   compact?: boolean;
   className?: string;
+  onChange?: (next: VoteChange) => void;
 }) {
-  const router = useRouter();
   const [voted, setVoted] = useState(initialVoted);
   const [count, setCount] = useState(initialCount);
   const [error, setError] = useState("");
   const [authOpen, setAuthOpen] = useState(false);
   const [returnPath, setReturnPath] = useState("/");
-  const [pending, startTransition] = useTransition();
   const [pop, setPop] = useState(false);
+  const inFlight = useRef(false);
+  const popTimer = useRef<number | null>(null);
 
   const closeAuth = useCallback(() => setAuthOpen(false), []);
 
+  // Re-seed only when the submission identity changes so optimistic likes are not wiped.
   useEffect(() => {
     setVoted(initialVoted);
     setCount(initialCount);
-  }, [initialVoted, initialCount, submissionId]);
+    setError("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: ignore later prop drift
+  }, [submissionId]);
+
+  useEffect(() => {
+    return () => {
+      if (popTimer.current != null) window.clearTimeout(popTimer.current);
+    };
+  }, []);
+
+  function applyLocal(nextVoted: boolean, nextCount: number) {
+    setVoted(nextVoted);
+    setCount(nextCount);
+    onChange?.({ voted: nextVoted, count: nextCount });
+  }
 
   async function toggle(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
+    if (inFlight.current) return;
+
     setError("");
 
-    const res = await fetch("/api/votes", {
-      method: voted ? "DELETE" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ submissionId }),
-    });
-    const data = await res.json();
+    const prevVoted = voted;
+    const prevCount = count;
+    const nextVoted = !voted;
+    const nextCount = Math.max(0, count + (nextVoted ? 1 : -1));
 
-    if (res.status === 401) {
-      setReturnPath(window.location.pathname + window.location.search);
-      setAuthOpen(true);
-      return;
-    }
+    inFlight.current = true;
+    applyLocal(nextVoted, nextCount);
 
-    if (res.status === 403) {
-      setError(data.error || "Verify your email to vote.");
-      return;
-    }
-
-    if (!res.ok) {
-      setError(data.error || "Could not update like.");
-      return;
-    }
-
-    const nextVoted = Boolean(data.voted);
-    setVoted(nextVoted);
-    if (typeof data.count === "number") setCount(data.count);
     if (nextVoted) {
       setPop(true);
-      window.setTimeout(() => setPop(false), 420);
+      if (popTimer.current != null) window.clearTimeout(popTimer.current);
+      popTimer.current = window.setTimeout(() => setPop(false), 420);
     }
-    startTransition(() => router.refresh());
+
+    try {
+      const res = await fetch("/api/votes", {
+        method: prevVoted ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submissionId }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.status === 401) {
+        applyLocal(prevVoted, prevCount);
+        setReturnPath(window.location.pathname + window.location.search);
+        setAuthOpen(true);
+        return;
+      }
+
+      if (res.status === 403) {
+        applyLocal(prevVoted, prevCount);
+        setError(data.error || "Verify your email to vote.");
+        return;
+      }
+
+      if (!res.ok) {
+        applyLocal(prevVoted, prevCount);
+        setError(data.error || "Could not update like.");
+        return;
+      }
+
+      const confirmedVoted =
+        typeof data.voted === "boolean" ? data.voted : nextVoted;
+      const confirmedCount =
+        typeof data.count === "number" ? data.count : nextCount;
+      applyLocal(confirmedVoted, confirmedCount);
+    } catch {
+      applyLocal(prevVoted, prevCount);
+      setError("Could not update like.");
+    } finally {
+      inFlight.current = false;
+    }
   }
 
   return (
@@ -95,7 +139,6 @@ export function VoteButton({
       <button
         type="button"
         onClick={toggle}
-        disabled={pending}
         className={`vote-btn ${compact ? "vote-btn--compact" : "vote-btn--full"} ${
           voted ? "vote-btn--on" : "vote-btn--off"
         } ${pop ? "vote-btn--pop" : ""}`}

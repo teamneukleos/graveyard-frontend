@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { DM_Sans, Syne } from "next/font/google";
+import { AppChrome } from "@/components/AppChrome";
 import { GraveyardAtmosphere } from "@/components/GraveyardAtmosphere";
 import { JsonLd } from "@/components/JsonLd";
 import { SiteFooter } from "@/components/SiteFooter";
-import { SiteNav } from "@/components/SiteNav";
 import { getSession } from "@/lib/auth";
 import { GraveyardLoadingProvider } from "@/components/GraveyardLoadingProvider";
 import SmoothScroll from "@/components/SmoothScroll";
@@ -116,9 +116,9 @@ export default async function RootLayout({
         <SmoothScroll>
           <GraveyardLoadingProvider>
             <div className="relative z-10 flex min-h-full flex-1 flex-col">
-              <SiteNav user={user} />
-              <div className="flex flex-1 flex-col">{children}</div>
-              <SiteFooter />
+              <AppChrome user={user} footer={<SiteFooter />}>
+                {children}
+              </AppChrome>
             </div>
           </GraveyardLoadingProvider>
         </SmoothScroll>

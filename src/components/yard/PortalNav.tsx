@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandLogo } from "@/components/BrandLogo";
 import { GraveyardLink } from "@/components/GraveyardLink";
 import { usePathname } from "next/navigation";
 
@@ -20,7 +21,18 @@ export function PortalNav({ items }: { items: PortalNavItem[] }) {
 
   return (
     <nav className="flex flex-wrap gap-2 border-b border-line bg-white/70 px-4 py-3 backdrop-blur-md md:px-6">
-      <div className="mx-auto flex w-full max-w-[1440px] flex-wrap gap-2">
+      <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-center gap-2">
+        <BrandLogo size="nav" tone="light" />
+
+        <GraveyardLink
+          href="/"
+          className="rounded-full bg-canvas px-3.5 py-1.5 text-[13px] font-semibold text-ink hover:bg-[#e0e0e0]"
+        >
+          Home
+        </GraveyardLink>
+
+        <span className="mx-1 hidden h-5 w-px bg-line sm:block" aria-hidden="true" />
+
         {items.map((item) => {
           const active = isActivePath(pathname, item.href);
           return (
