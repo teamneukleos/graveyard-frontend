@@ -92,7 +92,7 @@ export function SiteNav({ user }: { user: SessionUser | null }) {
                 href="/register"
                 className="rounded-full bg-accent px-3.5 py-1.5 text-[13px] font-bold text-white hover:brightness-95"
               >
-                Submit
+                Sign up
               </GraveyardLink>
             </>
           )}

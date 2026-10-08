@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { VoteButton } from "@/components/VoteButton";
 
@@ -22,8 +25,12 @@ const PLACEHOLDER = "/brand/logo-on-dark.png";
 export function FeedCard({ item, index = 0 }: { item: FeedItem; index?: number }) {
   const isWinner = item.status === "winner";
   const isShortlist = item.status === "shortlisted";
-  const voteCount = item.votes ?? 0;
   const likeId = item.submissionId || item.id;
+  const [likeCount, setLikeCount] = useState(item.votes ?? 0);
+
+  useEffect(() => {
+    setLikeCount(item.votes ?? 0);
+  }, [item.id, item.votes]);
 
   return (
     <Link href={`/showcase/${item.id}`} className="group block">
@@ -49,8 +56,9 @@ export function FeedCard({ item, index = 0 }: { item: FeedItem; index?: number }
           <VoteButton
             submissionId={likeId}
             initialVoted={Boolean(item.voted)}
-            initialCount={voteCount}
+            initialCount={item.votes ?? 0}
             compact
+            onChange={({ count }) => setLikeCount(count)}
           />
         </div>
       </div>
@@ -63,7 +71,9 @@ export function FeedCard({ item, index = 0 }: { item: FeedItem; index?: number }
           <span className="text-line"> · </span>
           {item.category}
           <span className="text-line"> · </span>
-          <span className="tabular-nums">{voteCount} likes</span>
+          <span className="tabular-nums">
+            {likeCount} like{likeCount === 1 ? "" : "s"}
+          </span>
         </p>
       </div>
     </Link>
