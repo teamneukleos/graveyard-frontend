@@ -4,24 +4,26 @@ import { FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CURRENT_YEAR, SUBMITTER_TYPES } from "@/lib/constants";
 import { uploadAssets } from "@/lib/uploads";
-import { useGraveyardLoading } from "@/components/GraveyardLoadingProvider";
+
+type Action = "submitting" | "saving" | null;
 
 export function SubmitForm({ categories }: { categories: string[] }) {
   const router = useRouter();
-  const { showLoader, hideLoader } = useGraveyardLoading();
 
   const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [action, setAction] = useState<Action>(null);
   const [files, setFiles] = useState<FileList | null>(null);
+
+  const loading = action !== null;
 
   async function save(status: "draft" | "submitted") {
     const form = formRef.current;
+
     if (!form) return;
 
-    setLoading(true);
+    setAction(status === "submitted" ? "submitting" : "saving");
     setError("");
-    showLoader();
 
     try {
       const data = new FormData(form);
@@ -44,9 +46,7 @@ export function SubmitForm({ categories }: { categories: string[] }) {
       const json = await res.json();
 
       if (!res.ok) {
-        setLoading(false);
         setError(json.error || "Could not save submission.");
-        hideLoader();
         return;
       }
 
@@ -70,12 +70,10 @@ export function SubmitForm({ categories }: { categories: string[] }) {
       } else {
         router.push(destination);
       }
-
-      router.refresh();
     } catch {
-      setLoading(false);
       setError("Something went wrong. Please try again.");
-      hideLoader();
+    } finally {
+      setAction(null);
     }
   }
 
@@ -94,6 +92,7 @@ export function SubmitForm({ categories }: { categories: string[] }) {
         <label className="label" htmlFor="title">
           Project title
         </label>
+
         <input
           className="field"
           id="title"
@@ -233,7 +232,7 @@ export function SubmitForm({ categories }: { categories: string[] }) {
           type="submit"
           disabled={loading}
         >
-          {loading ? "Saving…" : "Submit entry"}
+          {action === "submitting" ? "Submitting…" : "Submit entry"}
         </button>
 
         <button
@@ -242,7 +241,7 @@ export function SubmitForm({ categories }: { categories: string[] }) {
           disabled={loading}
           onClick={() => void save("draft")}
         >
-          Save draft
+          {action === "saving" ? "Saving…" : "Save draft"}
         </button>
       </div>
     </form>

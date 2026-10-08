@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { SUBMITTER_TYPES } from "@/lib/constants";
 import { uploadAssets } from "@/lib/uploads";
-import { useGraveyardLoading } from "@/components/GraveyardLoadingProvider";
 
 type Asset = {
   id: string;
@@ -26,6 +25,13 @@ type Submission = {
   assets: Asset[];
 };
 
+type Action =
+  | "submitting"
+  | "saving"
+  | "uploading"
+  | "removing"
+  | null;
+
 export function SubmissionEditor({
   submission,
   categories,
@@ -36,11 +42,13 @@ export function SubmissionEditor({
   initialUploadError?: string;
 }) {
   const router = useRouter();
-  const { showLoader, hideLoader } = useGraveyardLoading();
 
   const [error, setError] = useState(initialUploadError);
-  const [loading, setLoading] = useState(false);
+  const [action, setAction] = useState<Action>(null);
+  const [removingAssetId, setRemovingAssetId] = useState<string | null>(null);
   const [assets, setAssets] = useState(submission.assets);
+
+  const loading = action !== null;
 
   async function save(
     status: "draft" | "submitted",
@@ -48,9 +56,8 @@ export function SubmissionEditor({
   ) {
     e.preventDefault();
 
-    setLoading(true);
+    setAction(status === "submitted" ? "submitting" : "saving");
     setError("");
-    showLoader();
 
     try {
       const form = new FormData(e.currentTarget);
@@ -74,16 +81,14 @@ export function SubmissionEditor({
 
       if (!res.ok) {
         setError(data.error || "Could not save.");
-        hideLoader();
         return;
       }
 
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");
-      hideLoader();
     } finally {
-      setLoading(false);
+      setAction(null);
     }
   }
 
@@ -91,8 +96,7 @@ export function SubmissionEditor({
     if (!fileList?.length) return;
 
     setError("");
-    setLoading(true);
-    showLoader();
+    setAction("uploading");
 
     try {
       const uploaded = await uploadAssets(submission.id, fileList);
@@ -118,15 +122,14 @@ export function SubmissionEditor({
     } catch {
       setError("Could not upload files.");
     } finally {
-      setLoading(false);
-      hideLoader();
+      setAction(null);
     }
   }
 
   async function removeAsset(assetId: string) {
     setError("");
-    setLoading(true);
-    showLoader();
+    setAction("removing");
+    setRemovingAssetId(assetId);
 
     try {
       const res = await fetch(
@@ -149,8 +152,8 @@ export function SubmissionEditor({
     } catch {
       setError("Could not remove asset.");
     } finally {
-      setLoading(false);
-      hideLoader();
+      setAction(null);
+      setRemovingAssetId(null);
     }
   }
 
@@ -285,41 +288,46 @@ export function SubmissionEditor({
         />
 
         <p className="mt-2 text-xs text-ash">
-          Up to 12 files total per project.
+          {action === "uploading"
+            ? "Uploading…"
+            : "Up to 12 files total per project."}
         </p>
 
         <ul className="mt-3 space-y-2 text-sm text-ash">
-          {assets.map((asset) => (
-            <li
-              key={asset.id}
-              className="flex items-center justify-between gap-3"
-            >
-              <a
-                className="min-w-0 truncate text-moss hover:underline"
-                href={asset.url || asset.filename}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {asset.originalName}
-              </a>
+          {assets.map((asset) => {
+            const isRemoving =
+              action === "removing" && removingAssetId === asset.id;
 
-              <button
-                type="button"
-                className="shrink-0 text-[12px] font-semibold text-ember hover:underline"
-                disabled={loading}
-                onClick={() => void removeAsset(asset.id)}
+            return (
+              <li
+                key={asset.id}
+                className="flex items-center justify-between gap-3"
               >
-                Remove
-              </button>
-            </li>
-          ))}
+                <a
+                  className="min-w-0 truncate text-moss hover:underline"
+                  href={asset.url || asset.filename}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {asset.originalName}
+                </a>
+
+                <button
+                  type="button"
+                  className="shrink-0 text-[12px] font-semibold text-ember hover:underline disabled:opacity-50"
+                  disabled={loading}
+                  onClick={() => void removeAsset(asset.id)}
+                >
+                  {isRemoving ? "Removing…" : "Remove"}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </div>
 
       {error ? (
-        <p className="text-sm text-ember">
-          {error}
-        </p>
+        <p className="text-sm text-ember">{error}</p>
       ) : null}
 
       <div className="flex flex-wrap gap-3">
@@ -328,7 +336,7 @@ export function SubmissionEditor({
           type="submit"
           disabled={loading}
         >
-          {loading ? "Saving…" : "Submit entry"}
+          {action === "submitting" ? "Submitting…" : "Submit entry"}
         </button>
 
         <button
@@ -346,7 +354,7 @@ export function SubmissionEditor({
             } as FormEvent<HTMLFormElement>);
           }}
         >
-          Save draft
+          {action === "saving" ? "Saving…" : "Save draft"}
         </button>
       </div>
     </form>

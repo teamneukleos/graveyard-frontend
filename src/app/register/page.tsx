@@ -8,13 +8,11 @@ import {
   GoogleAuthButton,
 } from "@/components/AuthShell";
 import { PasswordField } from "@/components/PasswordField";
-import { useGraveyardLoading } from "@/components/GraveyardLoadingProvider";
 
 type AccountKind = "CREATOR" | "AGENCY";
 
 function RegisterForm() {
   const searchParams = useSearchParams();
-  const { showLoader, hideLoader } = useGraveyardLoading();
 
   const next = searchParams.get("next");
 
@@ -36,7 +34,6 @@ function RegisterForm() {
 
     setLoading(true);
     setError("");
-    showLoader();
 
     try {
       const form = new FormData(e.currentTarget);
@@ -47,7 +44,6 @@ function RegisterForm() {
           : undefined;
 
       if (accountKind === "AGENCY" && !agencyName) {
-        hideLoader();
         setLoading(false);
         setError("Agency name is required.");
         return;
@@ -70,14 +66,12 @@ function RegisterForm() {
       const data = await res.json();
 
       if (!res.ok) {
-        hideLoader();
         setLoading(false);
         setError(data.error || "Registration failed.");
         return;
       }
 
       setLoading(false);
-      hideLoader();
 
       setSentTo(
         typeof data.email === "string"
@@ -85,7 +79,6 @@ function RegisterForm() {
           : "your email",
       );
     } catch {
-      hideLoader();
       setLoading(false);
       setError("Something went wrong. Please try again.");
     }

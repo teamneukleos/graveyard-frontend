@@ -8,12 +8,10 @@ import {
   GoogleAuthButton,
 } from "@/components/AuthShell";
 import { PasswordField } from "@/components/PasswordField";
-import { useGraveyardLoading } from "@/components/GraveyardLoadingProvider";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { showLoader, hideLoader } = useGraveyardLoading();
 
   const next = searchParams.get("next");
   const oauthError = searchParams.get("error");
@@ -34,7 +32,6 @@ function LoginForm() {
 
     setLoading(true);
     setError("");
-    showLoader();
 
     try {
       const form = new FormData(e.currentTarget);
@@ -53,7 +50,6 @@ function LoginForm() {
       const data = await res.json();
 
       if (!res.ok) {
-        hideLoader();
         setLoading(false);
         setError(data.error || "Login failed.");
         return;
@@ -71,7 +67,6 @@ function LoginForm() {
 
       router.refresh();
     } catch {
-      hideLoader();
       setLoading(false);
       setError("Something went wrong. Please try again.");
     }
